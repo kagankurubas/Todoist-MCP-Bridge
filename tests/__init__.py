@@ -1,1 +1,1 @@
-# Todoist Gemini Bridge Test Suite
+# Todoist MCP Bridge Test Suite

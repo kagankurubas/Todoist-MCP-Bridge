@@ -21,7 +21,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("todoist_bridge_api")
 
 app = FastAPI(
-    title="Todoist Gemini Bridge API",
+    title="Todoist MCP Bridge API",
     description="REST API Bridge to parse AI/LLM task payloads and sync them with Todoist.",
     version="1.0.0",
 )

@@ -1,4 +1,4 @@
-# Todoist Gemini Bridge 🌉
+# Todoist MCP Bridge 🌉
 
 <p align="center">
   <img src="https://img.shields.io/badge/Python-3.10%2B-blue?logo=python&logoColor=white" alt="Python Version" />
@@ -7,12 +7,12 @@
   <img src="https://img.shields.io/badge/Pydantic-v2-e92063?logo=pydantic&logoColor=white" alt="Pydantic" />
   <img src="https://img.shields.io/badge/Todoist_API-v1-e44332?logo=todoist&logoColor=white" alt="Todoist API" />
   <img src="https://img.shields.io/badge/Google_Tasks-OAuth_2.0-4285F4?logo=google&logoColor=white" alt="Google Tasks API" />
-  <img src="https://img.shields.io/badge/Tests-168%20Passed-brightgreen?logo=pytest&logoColor=white" alt="Pytest" />
+  <img src="https://img.shields.io/badge/Tests-172%20Passed-brightgreen?logo=pytest&logoColor=white" alt="Pytest" />
   <img src="https://img.shields.io/badge/License-MIT-green" alt="License" />
 </p>
 
 <p align="center">
-  <strong>An automation bridge and local Model Context Protocol (MCP) server that converts AI/LLM outputs and Google Tasks into structured Todoist tasks with smart project routing, natural language due dates, and validation.</strong>
+  <strong>A local Model Context Protocol (MCP) server that lets AI assistants like Claude Desktop manage Todoist over STDIO, with smart project routing, natural language due dates, and strict validation. Optional CLI, webhook, and Google Tasks sync tools share the same core.</strong>
 </p>
 
 <p align="center">
@@ -78,7 +78,7 @@ flowchart TD
 <a name="english"></a>
 ## 🇬🇧 English
 
-Todoist Gemini Bridge is an open-source Python automation toolkit and local **Model Context Protocol (MCP)** server. It enables AI assistants (such as Claude Desktop), automation workflows (Google Tasks, n8n, Make), and developers to interact with Todoist using smart project resolution, natural language recurring schedules, and strict schema validation.
+Todoist MCP Bridge is primarily a local **Model Context Protocol (MCP)** server: Claude Desktop launches it as a subprocess and talks to it over STDIO, so no web server or deployment is needed. It lets an AI assistant manage Todoist through conversation using smart project resolution, natural language due dates, and strict schema validation. The repository also includes optional tools that share the same validation core: a standalone CLI, a FastAPI webhook service for local automations (n8n, Make), and a Google Tasks sync worker.
 
 ### 🌟 Key Features
 
@@ -99,7 +99,7 @@ Todoist Gemini Bridge is an open-source Python automation toolkit and local **Mo
 ### 📁 Project Structure
 
 ```text
-Todoist-Gemini-Bridge/
+Todoist-MCP-Bridge/
 ├── todoist_mcp.py          # FastMCP server for Claude Desktop (STDIO)
 ├── app.py                  # FastAPI Web Application & REST API
 ├── send_to_bridge.py       # Standalone CLI client for FastAPI webhook
@@ -111,7 +111,7 @@ Todoist-Gemini-Bridge/
 ├── main.py                 # Direct Todoist CLI runner & table formatter
 ├── gemini_tool_schema.json # Gemini Function Calling / Tool Schema
 ├── tasks_sample.json       # Sample task template
-├── tests/                  # Pytest test suite (168 unit & integration tests)
+├── tests/                  # Pytest test suite (172 unit & integration tests)
 ├── Dockerfile              # Docker container (runs sync_worker.py by default)
 ├── .dockerignore           # Excluded files for Docker build context
 ├── requirements.txt        # Python dependencies
@@ -124,8 +124,8 @@ Todoist-Gemini-Bridge/
 
 #### 1. Clone the Repository
 ```bash
-git clone https://github.com/kagankurubas/Todoist-Gemini-Bridge.git
-cd Todoist-Gemini-Bridge
+git clone https://github.com/kagankurubas/Todoist-MCP-Bridge.git
+cd Todoist-MCP-Bridge
 ```
 
 #### 2. Create Virtual Environment & Install Dependencies
@@ -178,9 +178,9 @@ Integrate Todoist directly into your Claude Desktop application.
 {
   "mcpServers": {
     "todoist": {
-      "command": "D:\\Todoist Gemini Bridge\\venv\\Scripts\\python.exe",
+      "command": "D:\\Todoist-MCP-Bridge\\venv\\Scripts\\python.exe",
       "args": [
-        "D:\\Todoist Gemini Bridge\\todoist_mcp.py"
+        "D:\\Todoist-MCP-Bridge\\todoist_mcp.py"
       ],
       "env": {
         "PYTHONIOENCODING": "utf-8"
@@ -276,7 +276,7 @@ python send_to_bridge.py --file tasks_sample.json
 <a name="türkçe"></a>
 ## 🇹🇷 Türkçe
 
-Todoist Gemini Bridge, yapay zeka modelleri (Claude Desktop, Gemini, ChatGPT), otomasyon araçları (Google Tasks, n8n, Make) veya geliştiricilerin Todoist ile etkileşime geçmesini sağlayan açık kaynaklı bir Python köprüsü ve **Model Context Protocol (MCP)** sunucusudur.
+Todoist MCP Bridge, temelde yerel çalışan bir **Model Context Protocol (MCP)** sunucusudur: Claude Desktop onu alt süreç olarak başlatır ve STDIO üzerinden konuşur; web sunucusu veya deploy gerekmez. Yapay zeka asistanının Todoist'i sohbet üzerinden yönetmesini sağlar. Repoda ayrıca aynı doğrulama çekirdeğini kullanan isteğe bağlı araçlar bulunur: bağımsız CLI, yerel otomasyonlar (n8n, Make) için FastAPI webhook servisi ve Google Tasks senkronizasyon servisi.
 
 ### 🌟 Öne Çıkan Özellikler
 
@@ -296,7 +296,7 @@ Todoist Gemini Bridge, yapay zeka modelleri (Claude Desktop, Gemini, ChatGPT), o
 ### 📁 Proje Yapısı
 
 ```text
-Todoist-Gemini-Bridge/
+Todoist-MCP-Bridge/
 ├── todoist_mcp.py          # Claude Desktop için FastMCP sunucusu (STDIO)
 ├── app.py                  # FastAPI Web Uygulaması ve REST API
 ├── send_to_bridge.py       # FastAPI webhook istemcisi (CLI)
@@ -308,7 +308,7 @@ Todoist-Gemini-Bridge/
 ├── main.py                 # Doğrudan Todoist CLI çalıştırıcısı ve tablo formatlayıcı
 ├── gemini_tool_schema.json # Gemini Function Calling / Tool Şeması
 ├── tasks_sample.json       # Örnek görev şablonu
-├── tests/                  # Pytest test paketi (168 birim ve entegrasyon testi)
+├── tests/                  # Pytest test paketi (172 birim ve entegrasyon testi)
 ├── Dockerfile              # Docker konteyner tanımı (varsayılan: sync_worker.py)
 ├── .dockerignore           # Docker derleme bağlamı hariç tutma listesi
 ├── requirements.txt        # Python bağımlılıkları
@@ -321,8 +321,8 @@ Todoist-Gemini-Bridge/
 
 #### 1. Projeyi Klonlayın
 ```bash
-git clone https://github.com/kagankurubas/Todoist-Gemini-Bridge.git
-cd Todoist-Gemini-Bridge
+git clone https://github.com/kagankurubas/Todoist-MCP-Bridge.git
+cd Todoist-MCP-Bridge
 ```
 
 #### 2. Sanal Ortam Oluşturun ve Paketleri Yükleyin
@@ -373,9 +373,9 @@ Claude Desktop uygulamanıza Todoist yeteneği kazandırmak için:
 {
   "mcpServers": {
     "todoist": {
-      "command": "D:\\Todoist Gemini Bridge\\venv\\Scripts\\python.exe",
+      "command": "D:\\Todoist-MCP-Bridge\\venv\\Scripts\\python.exe",
       "args": [
-        "D:\\Todoist Gemini Bridge\\todoist_mcp.py"
+        "D:\\Todoist-MCP-Bridge\\todoist_mcp.py"
       ],
       "env": {
         "PYTHONIOENCODING": "utf-8"
@@ -468,7 +468,7 @@ python send_to_bridge.py --file tasks_sample.json
 <a name="tests"></a>
 ## 🧪 Testing / Testleri Çalıştırma
 
-Projede 168 adet birim ve entegrasyon testi yer almaktadır:
+Projede 172 adet birim ve entegrasyon testi yer almaktadır:
 
 ```bash
 # Tüm testleri çalıştırmak için:

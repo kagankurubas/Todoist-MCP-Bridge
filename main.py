@@ -137,7 +137,7 @@ def process_and_create_tasks(tasks: List[TaskPayload], client: TodoistClient) ->
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Todoist Gemini Bridge: Parse JSON and batch create tasks in Todoist."
+        description="Todoist MCP Bridge: Parse JSON and batch create tasks in Todoist."
     )
     parser.add_argument(
         "--json",
