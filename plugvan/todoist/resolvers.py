@@ -1,11 +1,74 @@
-"""Name/ID resolution helpers for Todoist projects, labels and sections."""
+"""Name/ID resolution helpers for Todoist projects, labels and sections.
+
+`resolve_project` / `resolve_section` / `resolve_label` return exactly one of four
+outcomes: `Found`, `NotFound`, `Ambiguous` or `LookupFailed`. The older
+`_resolve_*` / `_find_project_id` helpers further down are compatibility wrappers
+that keep the previous first-wins behavior for existing tools until they migrate.
+"""
 
 import logging
-from typing import Optional
+from dataclasses import dataclass
+from typing import Optional, Union
 
 from todoist_api_python.api import TodoistAPI
 
 logger = logging.getLogger("todoist_mcp")
+
+MAX_AMBIGUOUS_CANDIDATES = 5
+INBOX_ALIASES = frozenset({"gelen kutusu", "inbox", "gelenkutusu", "inbox/gelen kutusu"})
+INBOX_DISPLAY_NAME = "Gelen Kutusu"
+
+
+@dataclass(frozen=True)
+class Candidate:
+    """One possible match in an ambiguous resolution."""
+
+    id: str
+    name: str
+
+    def __str__(self) -> str:
+        return f"{self.name} ({self.id})"
+
+
+@dataclass(frozen=True)
+class Found:
+    """Exactly one match. `id` is None only for an Inbox alias when no Inbox project is
+    listed; the caller then omits project_id and Todoist uses the Inbox."""
+
+    id: Optional[str]
+    name: str
+
+
+@dataclass(frozen=True)
+class NotFound:
+    """No candidate matched the cleaned query."""
+
+    query: str
+
+
+@dataclass(frozen=True)
+class Ambiguous:
+    """More than one candidate matched; at most MAX_AMBIGUOUS_CANDIDATES are kept, in list order."""
+
+    query: str
+    candidates: tuple[Candidate, ...]
+    has_more: bool
+
+    def candidate_lines(self) -> list[str]:
+        lines = [str(candidate) for candidate in self.candidates]
+        if self.has_more:
+            lines.append("…")
+        return lines
+
+
+@dataclass(frozen=True)
+class LookupFailed:
+    """Listing from the Todoist API raised. Carries the exception type only, never its message."""
+
+    error_type: str
+
+
+Resolution = Union[Found, NotFound, Ambiguous, LookupFailed]
 
 
 def _normalize(text: str) -> str:
@@ -39,6 +102,120 @@ def _get_all_sections(api: TodoistAPI, project_id: Optional[str] = None) -> list
         sections.extend(batch)
     return sections
 
+
+def _pick(query: str, matches: list) -> Optional[Resolution]:
+    """Turns the matches of one resolution step into Found / Ambiguous, or None to continue."""
+    if not matches:
+        return None
+    if len(matches) == 1:
+        return Found(str(matches[0].id), getattr(matches[0], "name", ""))
+    candidates = tuple(
+        Candidate(str(item.id), getattr(item, "name", "")) for item in matches[:MAX_AMBIGUOUS_CANDIDATES]
+    )
+    return Ambiguous(query, candidates, has_more=len(matches) > MAX_AMBIGUOUS_CANDIDATES)
+
+
+def _lookup_failed(kind: str, e: Exception) -> LookupFailed:
+    logger.error(
+        "Failed to retrieve %s for resolution (error_type=%s)",
+        kind,
+        type(e).__name__,
+        exc_info=False,
+    )
+    return LookupFailed(type(e).__name__)
+
+
+def _match_id_then_exact(items: list, query: str) -> Optional[Resolution]:
+    by_id = _pick(query, [item for item in items if str(getattr(item, "id", "")) == query])
+    if by_id:
+        return by_id
+    normalized = _normalize(query)
+    return _pick(query, [item for item in items if _normalize(getattr(item, "name", "")) == normalized])
+
+
+def resolve_project(
+    api: TodoistAPI,
+    name_or_id: str,
+    *,
+    allow_partial: bool = False,
+    allow_inbox_alias: bool = False,
+) -> Resolution:
+    """Resolves a project: ID → Inbox alias (if allowed) → exact name → partial (if allowed).
+
+    Each step returns as soon as it has a match; several matches in one step are Ambiguous.
+    An Inbox alias always resolves: to the Inbox project, or Found(None, ...) if none is listed.
+    """
+    query = name_or_id.strip() if isinstance(name_or_id, str) else ""
+    if not query:
+        return NotFound("")
+
+    try:
+        projects = _get_all_projects(api)
+    except Exception as e:
+        return _lookup_failed("projects", e)
+
+    by_id = _pick(query, [p for p in projects if str(getattr(p, "id", "")) == query])
+    if by_id:
+        return by_id
+
+    normalized = _normalize(query)
+    if allow_inbox_alias and normalized in INBOX_ALIASES:
+        inbox = _pick(query, [p for p in projects if getattr(p, "is_inbox_project", False)])
+        if inbox:
+            return inbox
+        alias_named = _pick(query, [p for p in projects if _normalize(getattr(p, "name", "")) in INBOX_ALIASES])
+        return alias_named or Found(None, INBOX_DISPLAY_NAME)
+
+    exact = _pick(query, [p for p in projects if _normalize(getattr(p, "name", "")) == normalized])
+    if exact:
+        return exact
+
+    if allow_partial:
+        partial = _pick(query, [p for p in projects if normalized in _normalize(getattr(p, "name", ""))])
+        if partial:
+            return partial
+
+    return NotFound(query)
+
+
+def resolve_section(api: TodoistAPI, name_or_id: str, *, project_id: Optional[str] = None) -> Resolution:
+    """Resolves a section by ID or exact name only (never partially).
+
+    With project_id, only sections of that project are candidates.
+    """
+    query = name_or_id.strip() if isinstance(name_or_id, str) else ""
+    if not query:
+        return NotFound("")
+
+    try:
+        sections = _get_all_sections(api, project_id=project_id)
+    except Exception as e:
+        return _lookup_failed("sections", e)
+
+    if project_id:
+        sections = [s for s in sections if str(getattr(s, "project_id", project_id)) == str(project_id)]
+
+    return _match_id_then_exact(sections, query) or NotFound(query)
+
+
+def resolve_label(api: TodoistAPI, name_or_id: str) -> Resolution:
+    """Resolves a label by ID or exact name (leading '@' stripped); no partial matching."""
+    query = name_or_id.strip().lstrip("@") if isinstance(name_or_id, str) else ""
+    if not query:
+        return NotFound("")
+
+    try:
+        labels = _get_all_labels(api)
+    except Exception as e:
+        return _lookup_failed("labels", e)
+
+    return _match_id_then_exact(labels, query) or NotFound(query)
+
+
+# ---------------------------------------------------------------------
+# Compatibility wrappers: previous first-wins behavior, kept unchanged for
+# tools that have not migrated to resolve_* yet. Remove once unused (#14).
+# ---------------------------------------------------------------------
 
 def _find_project_id(api: TodoistAPI, project_name: str) -> Optional[str]:
     """Resolves matching Todoist project ID by project name."""
