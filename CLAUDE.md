@@ -11,7 +11,7 @@ Bu dosya, Claude Code'a (claude.ai/code) bu repoda çalışırken rehberlik eder
 # Bağımlılıkları kur
 pip install -r requirements.txt
 
-# Tüm test paketini çalıştır (172 test)
+# Tüm test paketini çalıştır (181 test)
 pytest
 pytest -v
 

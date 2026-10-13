@@ -7,7 +7,7 @@
   <img src="https://img.shields.io/badge/Pydantic-v2-e92063?logo=pydantic&logoColor=white" alt="Pydantic" />
   <img src="https://img.shields.io/badge/Todoist_API-v1-e44332?logo=todoist&logoColor=white" alt="Todoist API" />
   <img src="https://img.shields.io/badge/Google_Tasks-OAuth_2.0-4285F4?logo=google&logoColor=white" alt="Google Tasks API" />
-  <img src="https://img.shields.io/badge/Tests-172%20Passed-brightgreen?logo=pytest&logoColor=white" alt="Pytest" />
+  <img src="https://img.shields.io/badge/Tests-181%20Passed-brightgreen?logo=pytest&logoColor=white" alt="Pytest" />
   <img src="https://img.shields.io/badge/License-MIT-green" alt="License" />
 </p>
 
@@ -84,7 +84,7 @@ Todoist MCP Bridge is primarily a local **Model Context Protocol (MCP)** server:
 
 - **🤖 Model Context Protocol (MCP) Server (`todoist_mcp.py`):** FastMCP server over STDIO for Claude Desktop with full suite of Todoist management tools:
   - **Tasks:** `create_task` (subtasks via `parent_id`, deadlines via `deadline_date`), `get_task`, `list_tasks`, `complete_task`, `reopen_task`, `update_task` (move/reparent, deadline updates), `delete_task`
-  - **Sections / Kanban:** `create_section`, `list_sections`, `delete_section`
+  - **Sections / Kanban:** `create_section`, `list_sections`, `update_section`, `delete_section`
   - **Labels:** `list_labels`, `create_label`, `update_label`, `delete_label`
   - **Comments / Notes:** `add_comment`, `get_comments`
   - **Projects & Hierarchy:** `create_project` (nested subprojects), `get_project`, `update_project`, `delete_project`, `list_projects` (tree view)
@@ -111,7 +111,7 @@ Todoist-MCP-Bridge/
 ├── main.py                 # Direct Todoist CLI runner & table formatter
 ├── gemini_tool_schema.json # Gemini Function Calling / Tool Schema
 ├── tasks_sample.json       # Sample task template
-├── tests/                  # Pytest test suite (172 unit & integration tests)
+├── tests/                  # Pytest test suite (181 unit & integration tests)
 ├── Dockerfile              # Docker container (runs sync_worker.py by default)
 ├── .dockerignore           # Excluded files for Docker build context
 ├── requirements.txt        # Python dependencies
@@ -282,7 +282,7 @@ Todoist MCP Bridge, temelde yerel çalışan bir **Model Context Protocol (MCP)*
 
 - **🤖 Model Context Protocol (MCP) Sunucusu (`todoist_mcp.py`):** Claude Desktop için FastMCP mimarisiyle yerel STDIO üzerinden çalışan kapsamlı Todoist yönetim araç seti:
   - **Görev Yönetimi:** `create_task` (parent_id ile alt görev, deadline_date ile son teslim tarihi), `get_task`, `list_tasks`, `complete_task`, `reopen_task`, `update_task` (proje/bölüm/üst görev taşıma, deadline güncelleme), `delete_task`
-  - **Bölüm / Kanban Listeleri:** `create_section`, `list_sections`, `delete_section`
+  - **Bölüm / Kanban Listeleri:** `create_section`, `list_sections`, `update_section`, `delete_section`
   - **Etiketler:** `list_labels`, `create_label`, `update_label`, `delete_label`
   - **Yorumlar & Notlar:** `add_comment`, `get_comments`
   - **Projeler & Hiyerarşi:** `create_project` (alt proje / parent_id), `get_project`, `update_project`, `delete_project`, `list_projects` (ağaç görünümü)
@@ -308,7 +308,7 @@ Todoist-MCP-Bridge/
 ├── main.py                 # Doğrudan Todoist CLI çalıştırıcısı ve tablo formatlayıcı
 ├── gemini_tool_schema.json # Gemini Function Calling / Tool Şeması
 ├── tasks_sample.json       # Örnek görev şablonu
-├── tests/                  # Pytest test paketi (172 birim ve entegrasyon testi)
+├── tests/                  # Pytest test paketi (181 birim ve entegrasyon testi)
 ├── Dockerfile              # Docker konteyner tanımı (varsayılan: sync_worker.py)
 ├── .dockerignore           # Docker derleme bağlamı hariç tutma listesi
 ├── requirements.txt        # Python bağımlılıkları
@@ -468,7 +468,7 @@ python send_to_bridge.py --file tasks_sample.json
 <a name="tests"></a>
 ## 🧪 Testing / Testleri Çalıştırma
 
-Projede 172 adet birim ve entegrasyon testi yer almaktadır:
+Projede 181 adet birim ve entegrasyon testi yer almaktadır:
 
 ```bash
 # Tüm testleri çalıştırmak için:
