@@ -314,3 +314,120 @@ def test_delete_and_update_section_lookup_failure_is_generic_error(mock_get_clie
         assert "project list secret" not in text
     assert "error_type=HTTPStatusError" in caplog.text
     assert "error_type=RuntimeError" in caplog.text
+
+
+# =====================================================================
+# CREATE_SECTION / LIST_SECTIONS: TASK PROJECT RULE (UNIQUE PARTIAL, AMBIGUITY, NO WRITE ON ERROR)
+# =====================================================================
+
+def _homework_and_workshop():
+    return [[MockProject("p1", "Homework"), MockProject("p2", "Workshop")]]
+
+
+@patch("plugvan.todoist.client.get_api_client")
+def test_create_section_ambiguous_project_creates_nothing(mock_get_client):
+    """'Work' partially matches both 'Homework' and 'Workshop'; the first one must not be picked."""
+    mock_api = MagicMock()
+    mock_get_client.return_value = mock_api
+    mock_api.get_projects.return_value = _homework_and_workshop()
+
+    result = create_section(name="In Progress", project_name_or_id="Work")
+
+    assert result == (
+        "⚠️ 'Work' için birden fazla proje bulundu; lütfen proje ID'sini kullanın:\n"
+        "• Homework (p1)\n"
+        "• Workshop (p2)"
+    )
+    mock_api.add_section.assert_not_called()
+
+
+@patch("plugvan.todoist.client.get_api_client")
+def test_list_sections_ambiguous_project_lists_nothing(mock_get_client):
+    """'Work' partially matches both 'Homework' and 'Workshop'; the first one must not be listed."""
+    mock_api = MagicMock()
+    mock_get_client.return_value = mock_api
+    mock_api.get_projects.return_value = _homework_and_workshop()
+    mock_api.get_sections.return_value = [[MockSection("sec_1", "Backlog", project_id="p1")]]
+
+    result = list_sections(project_name_or_id="Work")
+
+    assert result == (
+        "⚠️ 'Work' için birden fazla proje bulundu; lütfen proje ID'sini kullanın:\n"
+        "• Homework (p1)\n"
+        "• Workshop (p2)"
+    )
+    mock_api.get_sections.assert_not_called()
+
+
+@patch("plugvan.todoist.client.get_api_client")
+def test_create_section_and_list_sections_unique_partial_show_resolved_name(mock_get_client):
+    mock_api = MagicMock()
+    mock_get_client.return_value = mock_api
+    mock_api.get_projects.return_value = [[MockProject("p1", "Yazılım Geliştirme"), MockProject("p2", "Ev")]]
+    mock_api.add_section.return_value = MockSection("sec_new", "In Progress", project_id="p1")
+    mock_api.get_sections.return_value = [[MockSection("sec_new", "In Progress", project_id="p1")]]
+
+    created = create_section(name="In Progress", project_name_or_id="yazılım")
+    listed = list_sections(project_name_or_id="yazılım")
+
+    assert "Proje: 'Yazılım Geliştirme' (ID: p1)" in created
+    mock_api.add_section.assert_called_once_with(name="In Progress", project_id="p1")
+    assert "📑 Mevcut Bölümler ('Yazılım Geliştirme' Projesi, Toplam: 1):" in listed
+    mock_api.get_sections.assert_called_once_with(project_id="p1")
+
+
+@patch("plugvan.todoist.client.get_api_client")
+def test_create_section_and_list_sections_inbox_alias(mock_get_client):
+    mock_api = MagicMock()
+    mock_get_client.return_value = mock_api
+    mock_api.add_section.return_value = MockSection("sec_new", "Backlog", project_id="inbox_1")
+    mock_api.get_sections.return_value = [[MockSection("sec_new", "Backlog", project_id="inbox_1")]]
+
+    mock_api.get_projects.return_value = [[MockProject("inbox_1", "Inbox", is_inbox=True)]]
+    assert "Proje: 'Inbox' (ID: inbox_1)" in create_section(name="Backlog", project_name_or_id="Gelen Kutusu")
+    assert "('Inbox' Projesi, Toplam: 1)" in list_sections(project_name_or_id="inbox")
+
+    mock_api.add_section.reset_mock()
+    mock_api.get_sections.reset_mock()
+    mock_api.get_projects.return_value = [[MockProject("p2", "Ev")]]
+    assert create_section(name="Backlog", project_name_or_id="Inbox") == (
+        "⚠️ Bölüm oluşturulacak hedef proje bulunamadı: 'Inbox'."
+    )
+    assert list_sections(project_name_or_id="Inbox") == "⚠️ Belirtilen proje bulunamadı: 'Inbox'."
+    mock_api.get_sections.assert_not_called()
+    assert write_call_count(mock_api) == 0
+
+
+@patch("plugvan.todoist.client.get_api_client")
+def test_create_section_and_list_sections_not_found_list_no_candidates(mock_get_client):
+    mock_api = MagicMock()
+    mock_get_client.return_value = mock_api
+    mock_api.get_projects.return_value = _homework_and_workshop()
+
+    created = create_section(name="Backlog", project_name_or_id="Okul")
+    listed = list_sections(project_name_or_id="Okul")
+
+    assert created == "⚠️ Bölüm oluşturulacak hedef proje bulunamadı: 'Okul'."
+    assert listed == "⚠️ Belirtilen proje bulunamadı: 'Okul'."
+    mock_api.get_sections.assert_not_called()
+    assert write_call_count(mock_api) == 0
+
+
+@patch("plugvan.todoist.client.get_api_client")
+def test_create_section_and_list_sections_lookup_failure_is_generic_error(mock_get_client, caplog):
+    mock_api = MagicMock()
+    mock_get_client.return_value = mock_api
+    mock_api.get_projects.side_effect = _make_http_status_error(500, "upstream secret body")
+
+    with caplog.at_level(logging.DEBUG, logger="todoist_mcp"):
+        created = create_section(name="Backlog", project_name_or_id="Yazılım")
+        listed = list_sections(project_name_or_id="Yazılım")
+
+    assert created == "❌ Failed to create section 'Backlog' in Todoist. Check server logs for details."
+    assert listed == "❌ Failed to list sections from Todoist. Check server logs for details."
+    mock_api.get_sections.assert_not_called()
+    assert write_call_count(mock_api) == 0
+    for text in (created, listed, caplog.text):
+        assert "upstream secret body" not in text
+        assert "500" not in text
+    assert "error_type=HTTPStatusError" in caplog.text

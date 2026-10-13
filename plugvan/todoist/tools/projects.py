@@ -16,7 +16,6 @@ from plugvan.todoist.resolvers import (
     LookupFailed,
     NotFound,
     _get_all_projects,
-    _resolve_project,
     ambiguous_message,
     resolve_project,
 )
@@ -173,15 +172,22 @@ def create_project(
     if clean_color and len(clean_color) > MAX_COLOR_LENGTH:
         return f"❌ Invalid input: Color name exceeds maximum length of {MAX_COLOR_LENGTH} characters."
 
+    failure_message = f"❌ Failed to create project '{clean_name}' in Todoist. Check server logs for details."
     try:
         api = client.get_api_client()
         kwargs = {}
         parent_display = ""
 
         if clean_parent:
-            parent_id, parent_name = _resolve_project(api, clean_parent)
-            if not parent_id:
+            parent = resolve_project(api, clean_parent, allow_partial=True, allow_inbox_alias=True)
+            if isinstance(parent, LookupFailed):
+                return failure_message
+            if isinstance(parent, Ambiguous):
+                return ambiguous_message(parent, "proje")
+            # Found(None, ...) is an Inbox alias with no listed Inbox: a parent needs a real project ID.
+            if isinstance(parent, NotFound) or parent.id is None:
                 return f"⚠️ Belirtilen üst proje bulunamadı: '{clean_parent}'."
+            parent_id, parent_name = parent.id, parent.name
             kwargs["parent_id"] = parent_id
             parent_display = f"\n• Üst Proje: '{parent_name}' (ID: {parent_id})"
 
@@ -208,7 +214,7 @@ def create_project(
             type(e).__name__,
             exc_info=False,
         )
-        return f"❌ Failed to create project '{clean_name}' in Todoist. Check server logs for details."
+        return failure_message
 
 
 def update_project(

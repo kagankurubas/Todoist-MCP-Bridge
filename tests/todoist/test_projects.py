@@ -401,6 +401,86 @@ def test_delete_and_update_project_lookup_failure_is_generic_error(mock_get_clie
 
 
 # =====================================================================
+# CREATE_PROJECT PARENT: TASK PROJECT RULE (UNIQUE PARTIAL, AMBIGUITY, NO WRITE ON ERROR)
+# =====================================================================
+
+@patch("plugvan.todoist.client.get_api_client")
+def test_create_project_ambiguous_parent_creates_nothing(mock_get_client):
+    """'Work' partially matches both 'Homework' and 'Workshop'; the first one must not be picked."""
+    mock_api = MagicMock()
+    mock_get_client.return_value = mock_api
+    mock_api.get_projects.return_value = [[MockProject("p1", "Homework"), MockProject("p2", "Workshop")]]
+
+    result = create_project(name="Alt", parent_project_name_or_id="Work")
+
+    assert result == (
+        "⚠️ 'Work' için birden fazla proje bulundu; lütfen proje ID'sini kullanın:\n"
+        "• Homework (p1)\n"
+        "• Workshop (p2)"
+    )
+    mock_api.add_project.assert_not_called()
+
+
+@patch("plugvan.todoist.client.get_api_client")
+def test_create_project_unique_partial_parent_shows_resolved_name(mock_get_client):
+    mock_api = MagicMock()
+    mock_get_client.return_value = mock_api
+    mock_api.get_projects.return_value = [[MockProject("p1", "Ana Kategori"), MockProject("p2", "Kişisel")]]
+    mock_api.add_project.return_value = MockProject("child_1", "Alt", parent_id="p1")
+
+    result = create_project(name="Alt", parent_project_name_or_id="ana kat")
+
+    assert "Üst Proje: 'Ana Kategori' (ID: p1)" in result
+    mock_api.add_project.assert_called_once_with(name="Alt", parent_id="p1")
+
+
+@patch("plugvan.todoist.client.get_api_client")
+def test_create_project_inbox_alias_parent(mock_get_client):
+    mock_api = MagicMock()
+    mock_get_client.return_value = mock_api
+    mock_api.add_project.return_value = MockProject("child_1", "Alt", parent_id="inbox_1")
+
+    mock_api.get_projects.return_value = [[MockProject("inbox_1", "Inbox", is_inbox=True)]]
+    listed = create_project(name="Alt", parent_project_name_or_id="Gelen Kutusu")
+    assert "Üst Proje: 'Inbox' (ID: inbox_1)" in listed
+
+    mock_api.add_project.reset_mock()
+    mock_api.get_projects.return_value = [[MockProject("p2", "Ev")]]
+    unlisted = create_project(name="Alt", parent_project_name_or_id="Gelen Kutusu")
+    assert unlisted == "⚠️ Belirtilen üst proje bulunamadı: 'Gelen Kutusu'."
+    assert write_call_count(mock_api) == 0
+
+
+@patch("plugvan.todoist.client.get_api_client")
+def test_create_project_parent_not_found_lists_no_candidates(mock_get_client):
+    mock_api = MagicMock()
+    mock_get_client.return_value = mock_api
+    mock_api.get_projects.return_value = [[MockProject("p1", "Homework")]]
+
+    result = create_project(name="Alt", parent_project_name_or_id="Okul")
+
+    assert result == "⚠️ Belirtilen üst proje bulunamadı: 'Okul'."
+    assert write_call_count(mock_api) == 0
+
+
+@patch("plugvan.todoist.client.get_api_client")
+def test_create_project_parent_lookup_failure_is_generic_error(mock_get_client, caplog):
+    mock_api = MagicMock()
+    mock_get_client.return_value = mock_api
+    mock_api.get_projects.side_effect = _make_http_status_error(500, "upstream secret body")
+
+    with caplog.at_level(logging.DEBUG, logger="todoist_mcp"):
+        result = create_project(name="Alt", parent_project_name_or_id="Ana Kategori")
+
+    assert result == "❌ Failed to create project 'Alt' in Todoist. Check server logs for details."
+    assert write_call_count(mock_api) == 0
+    for text in (result, caplog.text):
+        assert "upstream secret body" not in text
+        assert "500" not in text
+    assert "error_type=HTTPStatusError" in caplog.text
+
+
+# =====================================================================
 # LIST_PROJECTS TESTS (HIERARCHICAL)
 # =====================================================================
 
