@@ -1,6 +1,7 @@
 # Plugvan
 
 <p align="center">
+  <a href="https://github.com/kagankurubas/plugvan/actions/workflows/ci.yml"><img src="https://github.com/kagankurubas/plugvan/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI" /></a>
   <img src="https://img.shields.io/badge/Python-3.10%2B-blue?logo=python&logoColor=white" alt="Python Version" />
   <img src="https://img.shields.io/badge/FastAPI-0.110%2B-009688?logo=fastapi&logoColor=white" alt="FastAPI" />
   <img src="https://img.shields.io/badge/MCP-FastMCP-8A2BE2?logo=anthropic&logoColor=white" alt="Model Context Protocol" />
