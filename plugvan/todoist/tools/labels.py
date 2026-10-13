@@ -23,7 +23,7 @@ logger = logging.getLogger("todoist_mcp")
 
 
 def list_labels() -> str:
-    """Lists all user labels in Todoist with their names, IDs, and color information."""
+    """Lists all user labels in Todoist (DEMO: deliberate description change to show CI turning red)."""
     try:
         api = client.get_api_client()
         labels = _get_all_labels(api)
