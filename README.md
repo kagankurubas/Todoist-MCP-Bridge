@@ -7,7 +7,7 @@
   <img src="https://img.shields.io/badge/Pydantic-v2-e92063?logo=pydantic&logoColor=white" alt="Pydantic" />
   <img src="https://img.shields.io/badge/Todoist_API-v1-e44332?logo=todoist&logoColor=white" alt="Todoist API" />
   <img src="https://img.shields.io/badge/Google_Tasks-OAuth_2.0-4285F4?logo=google&logoColor=white" alt="Google Tasks API" />
-  <img src="https://img.shields.io/badge/Tests-183%20Passed-brightgreen?logo=pytest&logoColor=white" alt="Pytest" />
+  <img src="https://img.shields.io/badge/Tests-254%20Passed-brightgreen?logo=pytest&logoColor=white" alt="Pytest" />
   <img src="https://img.shields.io/badge/License-MIT-green" alt="License" />
 </p>
 
@@ -94,7 +94,22 @@ Plugvan is primarily a local **Model Context Protocol (MCP)** server: Claude Des
   - **Projects & Hierarchy:** `create_project` (nested subprojects), `get_project`, `update_project`, `delete_project`, `list_projects` (tree view)
 - **🛡️ Pydantic & Batch Validation:** Strict type-safe schema verification with a 50-task maximum batch limit for both dictionary and list payloads.
 - **📱 Google Tasks → Todoist Sync Worker (`sync_worker.py`):** OAuth 2.0 daemon that synchronizes tasks from Google Tasks, parses tags (`#Project`, `p[1-4]`, `@Date`), pushes them to Todoist, and cleans up Google Tasks.
-- **🎯 Smart Project Resolution:** Dynamically maps human-readable project names (case-insensitive with Unicode normalization) to Todoist `project_id`. Defaults safely to `Inbox` if not found.
+- **🎯 Smart Name Resolution:** Maps human-readable project, section and label names (case-insensitive, with Turkish/Unicode normalization) to Todoist IDs.
+  - **MCP tools:**
+    - An unknown name returns an error, and nothing is written.
+    - When several items match, the tool returns an ambiguity error listing up to 5 candidates as `name (ID)`.
+    - Destructive tools (`delete_project`, `update_project`, `delete_section`, `update_section`, `delete_label`, `update_label`) accept only an ID or an exact name.
+    - `create_task`, `update_task`, `create_project` (parent), `create_section` and `list_sections` also accept a project name that partially matches exactly one project. Their messages show the project's real name.
+    - Sections match only by ID or exact name, inside the resolved project.
+    - `Inbox` / `Gelen Kutusu` always resolve to the Inbox.
+  - **CLI, webhook and sync worker:** an unknown project name still falls back to the `Inbox`.
+- **📏 Name limits (MCP tools):**
+  - Project names: up to 120 characters.
+  - Label names: up to 60 characters.
+  - Section names: up to 120 characters here. Todoist allows 2,048 (as of October 2026), so a section with a longer name can only be addressed by its ID.
+  - The number of projects you can have depends on your Todoist plan. See Todoist's official [Usage limits in Todoist](https://www.todoist.com/help/todoist/get-started/usage-limits-in-todoist-e5rcSY) page for the current limits.
+  - Name lookup searches only your active projects.
+  - Archived projects are not listed, so their names are reported as "not found".
 - **⚡ FastAPI Webhook API (`app.py`):** REST API with timing-attack safe header authentication (`X-Bridge-Token`) and configurable CORS origin filtering.
 - **🧹 Markdown & JSON Extraction:** Automatically strips markdown code fences (````json ... ````) from raw LLM outputs.
 - **💻 Standalone CLI Tools:** Direct execution script (`main.py`) and webhook dispatcher client (`send_to_bridge.py`).
@@ -115,7 +130,7 @@ plugvan/
 ├── main.py                 # Direct Todoist CLI runner & table formatter
 ├── gemini_tool_schema.json # Gemini Function Calling / Tool Schema
 ├── tasks_sample.json       # Sample task template
-├── tests/                  # Pytest test suite (183 unit & integration tests)
+├── tests/                  # Pytest test suite (254 unit & integration tests)
 ├── Dockerfile              # Docker container (runs sync_worker.py by default)
 ├── .dockerignore           # Excluded files for Docker build context
 ├── requirements.txt        # Python dependencies
@@ -291,7 +306,22 @@ Plugvan, temelde yerel çalışan bir **Model Context Protocol (MCP)** sunucusud
   - **Projeler & Hiyerarşi:** `create_project` (alt proje / parent_id), `get_project`, `update_project`, `delete_project`, `list_projects` (ağaç görünümü)
 - **🛡️ Pydantic ile Doğrulama & Toplu İşlem Limiti:** Tekil veya toplu görev verilerinin tiplerini doğrular; tek seferde en fazla 50 görev sınırını hem liste hem sözlük formatında zorunlu kılar.
 - **📱 Google Tasks → Todoist Senkronizasyonu (`sync_worker.py`):** Google Tasks'teki görevleri okur, etiketleri (`#Proje`, `p[1-4]`, `@Tarih`) ayrıştırır, Todoist'e aktarır ve aktarılanları siler.
-- **🎯 Akıllı Proje Eşleme:** Proje isimlerini (`project_name`) büyük/küçük harf duyarsız ve Türkçe karakter uyumlu olarak dinamik Todoist proje ID'lerine eşler; bulunamazsa güvenli bir şekilde `Gelen Kutusu`na (Inbox) yönlendirir.
+- **🎯 Akıllı İsim Eşleme:** Proje, bölüm ve etiket isimlerini büyük/küçük harf duyarsız ve Türkçe karakter uyumlu olarak Todoist ID'lerine eşler.
+  - **MCP tool'ları:**
+    - Bilinmeyen isim hata döndürür ve hiçbir şey yazılmaz.
+    - Birden fazla eşleşmede en fazla 5 aday `isim (ID)` olarak listelenir.
+    - Yıkıcı tool'lar (`delete_project`, `update_project`, `delete_section`, `update_section`, `delete_label`, `update_label`) yalnızca ID veya tam isim kabul eder.
+    - `create_task`, `update_task`, `create_project` (üst proje), `create_section` ve `list_sections` yalnızca tek bir projeyle kısmi eşleşen bir proje adını da kabul eder; mesajlar projenin gerçek adını gösterir.
+    - Bölümler yalnızca ID veya tam isimle, çözümlenen projenin içinde aranır.
+    - `Inbox` / `Gelen Kutusu` her zaman Gelen Kutusu'na çözümlenir.
+  - **CLI, webhook ve sync worker:** bilinmeyen proje adı hâlâ `Gelen Kutusu`na (Inbox) yönlendirilir.
+- **📏 İsim limitleri (MCP tool'ları):**
+  - Proje adı: en fazla 120 karakter.
+  - Etiket adı: en fazla 60 karakter.
+  - Bölüm adı: burada en fazla 120 karakter. Todoist 2.048 karaktere izin verdiği için (Ekim 2026 itibarıyla) daha uzun isimli bir bölüme yalnızca ID ile ulaşılabilir.
+  - Kullanabileceğiniz proje sayısı Todoist planınıza göre değişir. Güncel limitler için Todoist'in resmi [Usage limits in Todoist](https://www.todoist.com/help/todoist/get-started/usage-limits-in-todoist-e5rcSY) sayfasına bakın.
+  - İsim araması yalnızca aktif projeleriniz içinde yapılır.
+  - Arşivlenmiş projeler listelenmediği için isimleri "bulunamadı" sayılır.
 - **⚡ FastAPI Webhook API (`app.py`):** Zamanlama saldırılarına korumalı (timing-safe) `X-Bridge-Token` başlık doğrulaması ve yapılandırılabilir CORS köken filtreleme desteği içeren REST servisi.
 - **🧹 Markdown & JSON Ayıklama:** LLM çıktılarındaki markdown formatlı kod bloklarını (````json ... ````) otomatik olarak temizler.
 - **💻 Bağımsız CLI Araçları:** Sunucusuz doğrudan görev ekleme (`main.py`) ve webhook istemcisi (`send_to_bridge.py`).
@@ -311,7 +341,7 @@ plugvan/
 ├── main.py                 # Doğrudan Todoist CLI çalıştırıcısı ve tablo formatlayıcı
 ├── gemini_tool_schema.json # Gemini Function Calling / Tool Şeması
 ├── tasks_sample.json       # Örnek görev şablonu
-├── tests/                  # Pytest test paketi (183 birim ve entegrasyon testi)
+├── tests/                  # Pytest test paketi (254 birim ve entegrasyon testi)
 ├── Dockerfile              # Docker konteyner tanımı (varsayılan: sync_worker.py)
 ├── .dockerignore           # Docker derleme bağlamı hariç tutma listesi
 ├── requirements.txt        # Python bağımlılıkları
@@ -470,7 +500,7 @@ python send_to_bridge.py --file tasks_sample.json
 <a name="tests"></a>
 ## 🧪 Testing / Testleri Çalıştırma
 
-Projede 183 adet birim ve entegrasyon testi yer almaktadır:
+Projede 254 adet birim ve entegrasyon testi yer almaktadır:
 
 ```bash
 # Tüm testleri çalıştırmak için:

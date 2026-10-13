@@ -14,10 +14,6 @@ from plugvan.todoist.resolvers import (
     Found,
     LookupFailed,
     NotFound,
-    _find_project_id,
-    _resolve_label,
-    _resolve_project,
-    _resolve_section,
     resolve_label,
     resolve_project,
     resolve_section,
@@ -278,40 +274,3 @@ def test_resolve_label_api_failure_is_lookup_failed(caplog):
 
     assert result == LookupFailed("TimeoutError")
     assert "abc123" not in caplog.text
-
-
-# =====================================================================
-# COMPATIBILITY WRAPPERS (legacy behavior, removed in #14)
-# =====================================================================
-
-def test_legacy_find_project_id_returns_none_on_api_failure():
-    mock_api = MagicMock()
-    mock_api.get_projects.side_effect = RuntimeError("Network timeout")
-
-    assert _find_project_id(mock_api, "Nonexistent") is None
-
-
-def test_legacy_resolve_project_keeps_first_wins_partial_match():
-    mock_api = _api_with_projects(
-        MockProject("p1", "Homework"),
-        MockProject("p2", "Workshop"),
-    )
-
-    assert _resolve_project(mock_api, "Work") == ("p1", "Homework")
-    assert _find_project_id(mock_api, "Work") == "p1"
-
-
-def test_legacy_resolve_section_keeps_first_wins_across_projects():
-    mock_api = _api_with_sections(
-        MockSection("sec_1", "Backlog", project_id="proj_1"),
-        MockSection("sec_2", "Backlog", project_id="proj_2"),
-    )
-
-    assert _resolve_section(mock_api, "Backlog") == ("sec_1", "Backlog")
-
-
-def test_legacy_resolve_label_returns_none_pair_when_missing():
-    mock_api = _api_with_labels(MockLabel("lbl_1", "önemli"))
-
-    assert _resolve_label(mock_api, "@önemli") == ("lbl_1", "önemli")
-    assert _resolve_label(mock_api, "olmayan") == (None, None)

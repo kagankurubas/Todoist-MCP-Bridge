@@ -5,6 +5,32 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Changed
+- **Breaking: safer name resolution in the MCP tools (#9).**
+  - `delete_project`, `update_project`, `delete_section`, `update_section`,
+    `delete_label` and `update_label` no longer use partial matching or the
+    Inbox alias. They accept only an ID or an exact name.
+  - An unknown project, section or label name now returns an error, and
+    nothing is written. Previously `create_task` silently created the task in
+    the Inbox.
+  - Sections are matched only by ID or exact name, and only inside the
+    resolved project. In `update_task` without `project_name`, that is the
+    task's current project.
+  - `update_task` validates the target project and section before writing.
+    The old "Görev güncellendi fakat hedef proje bulunamadı" and "…hedef
+    bölüm bulunamadı" messages are gone, because nothing is updated any more
+    when the target is missing.
+  - When several items match, the tool returns an ambiguity error that lists
+    at most 5 candidates as `name (ID)` and asks for the ID.
+  - Labels: a leading `@` is stripped, and two labels whose names differ only
+    by case are treated as ambiguous.
+  - A project name that partially matches exactly one project is still
+    accepted by `create_task`, `update_task`, `create_project` (parent),
+    `create_section` and `list_sections`. The message shows the project's
+    real name instead of the input.
+  - A failed lookup (Todoist API error while listing) returns the tool's
+    generic error instead of "not found". Only the error type is logged.
+  - The CLI, webhook and sync worker are unchanged: an unknown project name
+    there still falls back to the Inbox.
 - The Todoist MCP server moved from the single-file `todoist_mcp.py` into
   the `plugvan.todoist` package (server, client, limits, resolvers, and one
   tools module per domain). No behavior change: same 22 tools, names,
@@ -18,6 +44,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   with `"PYTHONPATH": "<REPO_PATH>"` in `env`, then restart Claude Desktop.
 
 ### Added
+- Name-resolution tests: the four resolver outcomes, ambiguity and the
+  5-candidate cap, no write on any error, and no exception text or HTTP
+  response in tool output or logs. Suite: 183 → 254.
 - MCP tool surface snapshot test: all 22 tools' name, description,
   input and output schema are compared against a fixture recorded before
   the move. Suite: 181 → 183.
