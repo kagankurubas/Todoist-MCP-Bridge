@@ -10,7 +10,7 @@ import asyncio
 import json
 from pathlib import Path
 
-from todoist_mcp import mcp
+from plugvan.todoist.server import mcp
 
 FIXTURE_PATH = Path(__file__).parent / "fixtures" / "todoist_mcp_tool_surface.json"
 COMPARED_FIELDS = ("description", "inputSchema", "outputSchema")

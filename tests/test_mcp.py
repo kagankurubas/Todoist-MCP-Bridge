@@ -7,7 +7,7 @@ from datetime import date
 from unittest.mock import MagicMock, patch
 import httpx
 import pytest
-from todoist_mcp import (
+from plugvan.todoist.limits import (
     MAX_COLOR_LENGTH,
     MAX_COMMENT_LENGTH,
     MAX_CONTENT_LENGTH,
@@ -18,31 +18,43 @@ from todoist_mcp import (
     MAX_PROJECT_NAME_LENGTH,
     MAX_SECTION_NAME_LENGTH,
     MAX_TASK_ID_LENGTH,
+)
+from plugvan.todoist.resolvers import (
     _find_project_id,
     _resolve_label,
     _resolve_project,
     _resolve_section,
+)
+from plugvan.todoist.tools.comments import (
     add_comment,
-    complete_task,
-    create_label,
-    create_project,
-    create_section,
-    create_task,
-    delete_label,
-    delete_project,
-    delete_section,
-    delete_task,
     get_comments,
-    get_project,
-    get_task,
+)
+from plugvan.todoist.tools.labels import (
+    create_label,
+    delete_label,
     list_labels,
+    update_label,
+)
+from plugvan.todoist.tools.projects import (
+    create_project,
+    delete_project,
+    get_project,
     list_projects,
+    update_project,
+)
+from plugvan.todoist.tools.sections import (
+    create_section,
+    delete_section,
     list_sections,
+    update_section,
+)
+from plugvan.todoist.tools.tasks import (
+    complete_task,
+    create_task,
+    delete_task,
+    get_task,
     list_tasks,
     reopen_task,
-    update_label,
-    update_project,
-    update_section,
     update_task,
 )
 
@@ -141,7 +153,7 @@ class MockTask:
 # CREATE_TASK TESTS
 # =====================================================================
 
-@patch("todoist_mcp._get_api_client")
+@patch("plugvan.todoist.client.get_api_client")
 def test_create_task_success(mock_get_client):
     mock_api = MagicMock()
     mock_get_client.return_value = mock_api
@@ -187,7 +199,7 @@ def test_create_task_success(mock_get_client):
     )
 
 
-@patch("todoist_mcp._get_api_client")
+@patch("plugvan.todoist.client.get_api_client")
 def test_create_task_section_not_found(mock_get_client):
     mock_api = MagicMock()
     mock_get_client.return_value = mock_api
@@ -203,7 +215,7 @@ def test_create_task_section_not_found(mock_get_client):
     assert "⚠️ Belirtilen bölüm bulunamadı: 'Olmayan Bölüm'." in result
 
 
-@patch("todoist_mcp._get_api_client")
+@patch("plugvan.todoist.client.get_api_client")
 def test_create_task_inbox_default(mock_get_client):
     mock_api = MagicMock()
     mock_get_client.return_value = mock_api
@@ -228,7 +240,7 @@ def test_create_task_inbox_default(mock_get_client):
     )
 
 
-@patch("todoist_mcp._get_api_client")
+@patch("plugvan.todoist.client.get_api_client")
 def test_create_task_with_parent_id(mock_get_client):
     """parent_id verildiğinde SDK çağrısına dahil edilmelidir (alt görev/subtask)."""
     mock_api = MagicMock()
@@ -254,7 +266,7 @@ def test_create_task_with_parent_id(mock_get_client):
     )
 
 
-@patch("todoist_mcp._get_api_client")
+@patch("plugvan.todoist.client.get_api_client")
 def test_create_task_without_parent_id_omitted(mock_get_client):
     """parent_id verilmediğinde SDK çağrısında hiç yer almamalıdır."""
     mock_api = MagicMock()
@@ -273,7 +285,7 @@ def test_create_task_without_parent_id_omitted(mock_get_client):
     assert "parent_id" not in call_kwargs
 
 
-@patch("todoist_mcp._get_api_client")
+@patch("plugvan.todoist.client.get_api_client")
 def test_create_task_with_deadline_date(mock_get_client):
     """deadline_date verildiğinde bir date nesnesine çevrilip SDK çağrısına dahil edilmelidir."""
     mock_api = MagicMock()
@@ -300,7 +312,7 @@ def test_create_task_with_deadline_date(mock_get_client):
     )
 
 
-@patch("todoist_mcp._get_api_client")
+@patch("plugvan.todoist.client.get_api_client")
 def test_create_task_without_deadline_date_omitted(mock_get_client):
     """deadline_date verilmediğinde SDK çağrısında hiç yer almamalıdır."""
     mock_api = MagicMock()
@@ -324,7 +336,7 @@ def test_create_task_invalid_deadline_date_format():
     assert "❌ Invalid input: deadline_date must be in YYYY-MM-DD format" in result
 
 
-@patch("todoist_mcp._get_api_client")
+@patch("plugvan.todoist.client.get_api_client")
 def test_create_task_due_string_and_deadline_date_together(mock_get_client):
     """due_string ve deadline_date aynı anda verildiğinde birbirini geçersiz kılmadan,
     ikisi de bağımsız alanlar olarak SDK çağrısına dahil edilmelidir."""
@@ -358,7 +370,7 @@ def test_create_task_due_string_and_deadline_date_together(mock_get_client):
     )
 
 
-@patch("todoist_mcp._get_api_client")
+@patch("plugvan.todoist.client.get_api_client")
 def test_create_task_deadline_date_403_reports_plan_restriction(mock_get_client):
     """deadline_date verilen bir istek 403 Forbidden ile reddedilirse, Free/Beginner planında
     Deadline özelliğinin desteklenmediğini açıklayan özel bir hata mesajı dönmelidir."""
@@ -376,7 +388,7 @@ def test_create_task_deadline_date_403_reports_plan_restriction(mock_get_client)
     )
 
 
-@patch("todoist_mcp._get_api_client")
+@patch("plugvan.todoist.client.get_api_client")
 def test_create_task_403_without_deadline_date_uses_generic_message(mock_get_client):
     """deadline_date verilmeden gelen bir 403, plan-kısıtlaması mesajını değil genel hata
     mesajını dönmelidir (deadline dışı 403 sebepleri etkilenmemeli)."""
@@ -431,7 +443,7 @@ def test_create_task_invalid_labels_type():
     assert "❌ Invalid input: Labels must be a list of strings" in result
 
 
-@patch("todoist_mcp._get_api_client")
+@patch("plugvan.todoist.client.get_api_client")
 def test_create_task_sanitizes_exception_and_logs_cleanly(mock_get_client, caplog):
     mock_api = MagicMock()
     mock_get_client.return_value = mock_api
@@ -454,7 +466,7 @@ def test_create_task_sanitizes_exception_and_logs_cleanly(mock_get_client, caplo
 # LIST_TASKS TESTS
 # =====================================================================
 
-@patch("todoist_mcp._get_api_client")
+@patch("plugvan.todoist.client.get_api_client")
 def test_list_tasks_success(mock_get_client):
     mock_api = MagicMock()
     mock_get_client.return_value = mock_api
@@ -474,7 +486,7 @@ def test_list_tasks_success(mock_get_client):
     assert "Tarih: Tarih yok" in result
 
 
-@patch("todoist_mcp._get_api_client")
+@patch("plugvan.todoist.client.get_api_client")
 def test_list_tasks_empty_result(mock_get_client):
     mock_api = MagicMock()
     mock_get_client.return_value = mock_api
@@ -495,7 +507,7 @@ def test_list_tasks_filter_too_long():
     assert "❌ Invalid input: Filter query exceeds maximum length" in result
 
 
-@patch("todoist_mcp._get_api_client")
+@patch("plugvan.todoist.client.get_api_client")
 def test_list_tasks_sanitizes_exception_and_logs_cleanly(mock_get_client, caplog):
     mock_api = MagicMock()
     mock_get_client.return_value = mock_api
@@ -515,7 +527,7 @@ def test_list_tasks_sanitizes_exception_and_logs_cleanly(mock_get_client, caplog
 # GET_TASK TESTS
 # =====================================================================
 
-@patch("todoist_mcp._get_api_client")
+@patch("plugvan.todoist.client.get_api_client")
 def test_get_task_success(mock_get_client):
     mock_api = MagicMock()
     mock_get_client.return_value = mock_api
@@ -545,7 +557,7 @@ def test_get_task_success(mock_get_client):
     mock_api.get_task.assert_called_once_with(task_id="task_777")
 
 
-@patch("todoist_mcp._get_api_client")
+@patch("plugvan.todoist.client.get_api_client")
 def test_get_task_without_parent_shows_top_level(mock_get_client):
     mock_api = MagicMock()
     mock_get_client.return_value = mock_api
@@ -572,7 +584,7 @@ def test_get_task_id_too_long():
     assert f"❌ Invalid input: Task ID exceeds maximum length of {MAX_TASK_ID_LENGTH} characters." in result
 
 
-@patch("todoist_mcp._get_api_client")
+@patch("plugvan.todoist.client.get_api_client")
 def test_get_task_sanitizes_exception_and_logs_cleanly(mock_get_client, caplog):
     mock_api = MagicMock()
     mock_get_client.return_value = mock_api
@@ -592,7 +604,7 @@ def test_get_task_sanitizes_exception_and_logs_cleanly(mock_get_client, caplog):
 # COMPLETE_TASK & REOPEN_TASK TESTS
 # =====================================================================
 
-@patch("todoist_mcp._get_api_client")
+@patch("plugvan.todoist.client.get_api_client")
 def test_complete_task_success(mock_get_client):
     mock_api = MagicMock()
     mock_get_client.return_value = mock_api
@@ -603,7 +615,7 @@ def test_complete_task_success(mock_get_client):
     mock_api.complete_task.assert_called_once_with(task_id="task_abc123")
 
 
-@patch("todoist_mcp._get_api_client")
+@patch("plugvan.todoist.client.get_api_client")
 def test_complete_task_unsuccessful(mock_get_client):
     mock_api = MagicMock()
     mock_get_client.return_value = mock_api
@@ -624,7 +636,7 @@ def test_complete_task_id_too_long():
     assert "❌ Invalid input: Task ID exceeds maximum length" in result
 
 
-@patch("todoist_mcp._get_api_client")
+@patch("plugvan.todoist.client.get_api_client")
 def test_complete_task_sanitizes_exception_and_logs_cleanly(mock_get_client, caplog):
     mock_api = MagicMock()
     mock_get_client.return_value = mock_api
@@ -640,7 +652,7 @@ def test_complete_task_sanitizes_exception_and_logs_cleanly(mock_get_client, cap
     assert "SUPER_SECRET_TOKEN_123" not in caplog.text
 
 
-@patch("todoist_mcp._get_api_client")
+@patch("plugvan.todoist.client.get_api_client")
 def test_reopen_task_success(mock_get_client):
     mock_api = MagicMock()
     mock_get_client.return_value = mock_api
@@ -651,7 +663,7 @@ def test_reopen_task_success(mock_get_client):
     mock_api.uncomplete_task.assert_called_once_with(task_id="task_reopen_1")
 
 
-@patch("todoist_mcp._get_api_client")
+@patch("plugvan.todoist.client.get_api_client")
 def test_reopen_task_unsuccessful(mock_get_client):
     mock_api = MagicMock()
     mock_get_client.return_value = mock_api
@@ -666,7 +678,7 @@ def test_reopen_task_empty_id():
     assert "❌ Invalid input: Task ID cannot be empty" in result
 
 
-@patch("todoist_mcp._get_api_client")
+@patch("plugvan.todoist.client.get_api_client")
 def test_reopen_task_sanitizes_exception(mock_get_client):
     mock_api = MagicMock()
     mock_get_client.return_value = mock_api
@@ -681,7 +693,7 @@ def test_reopen_task_sanitizes_exception(mock_get_client):
 # UPDATE_TASK TESTS
 # =====================================================================
 
-@patch("todoist_mcp._get_api_client")
+@patch("plugvan.todoist.client.get_api_client")
 def test_update_task_success(mock_get_client):
     mock_api = MagicMock()
     mock_get_client.return_value = mock_api
@@ -736,7 +748,7 @@ def test_update_task_invalid_labels_type():
     assert "❌ Invalid input: Labels must be a list of strings" in result
 
 
-@patch("todoist_mcp._get_api_client")
+@patch("plugvan.todoist.client.get_api_client")
 def test_update_task_sanitizes_exception(mock_get_client):
     mock_api = MagicMock()
     mock_get_client.return_value = mock_api
@@ -752,7 +764,7 @@ def test_update_task_parent_id_too_long():
     assert f"❌ Invalid input: Parent task ID exceeds maximum length of {MAX_TASK_ID_LENGTH} characters." in result
 
 
-@patch("todoist_mcp._get_api_client")
+@patch("plugvan.todoist.client.get_api_client")
 def test_update_task_sets_parent_id(mock_get_client):
     """parent_id dolu bir string olarak verildiğinde move_task ile yeni üst görev atanmalı."""
     mock_api = MagicMock()
@@ -767,7 +779,7 @@ def test_update_task_sets_parent_id(mock_get_client):
     mock_api.move_task.assert_called_once_with(task_id="task_child", parent_id="task_parent_1")
 
 
-@patch("todoist_mcp._get_api_client")
+@patch("plugvan.todoist.client.get_api_client")
 def test_update_task_unparent_with_empty_string(mock_get_client):
     """parent_id="" verildiğinde, görevin mevcut projesi (api.get_task ile) çekilip
     move_task(project_id=...) ile üst seviyeye taşınmalı (Todoist API'de parent_id'yi
@@ -784,7 +796,7 @@ def test_update_task_unparent_with_empty_string(mock_get_client):
     mock_api.move_task.assert_called_once_with(task_id="task_child", project_id="proj_999")
 
 
-@patch("todoist_mcp._get_api_client")
+@patch("plugvan.todoist.client.get_api_client")
 def test_update_task_unparent_with_project_name_skips_current_project_lookup(mock_get_client):
     """parent_id="" ile aynı anda project_name de verilirse, hedef proje zaten
     resolve edildiğinden api.get_task ile mevcut proje sorgusu yapılmamalı."""
@@ -801,7 +813,7 @@ def test_update_task_unparent_with_project_name_skips_current_project_lookup(moc
     mock_api.move_task.assert_called_once_with(task_id="task_child", project_id="proj_42")
 
 
-@patch("todoist_mcp._get_api_client")
+@patch("plugvan.todoist.client.get_api_client")
 def test_update_task_with_deadline_date(mock_get_client):
     """deadline_date verildiğinde bir date nesnesine çevrilip api.update_task çağrısına dahil edilmelidir."""
     mock_api = MagicMock()
@@ -814,7 +826,7 @@ def test_update_task_with_deadline_date(mock_get_client):
     mock_api.update_task.assert_called_once_with(task_id="task_123", deadline_date=date(2026, 9, 1))
 
 
-@patch("todoist_mcp._get_api_client")
+@patch("plugvan.todoist.client.get_api_client")
 def test_update_task_without_deadline_date_omitted(mock_get_client):
     """deadline_date verilmediğinde api.update_task çağrısında hiç yer almamalıdır."""
     mock_api = MagicMock()
@@ -831,7 +843,7 @@ def test_update_task_invalid_deadline_date_format():
     assert "❌ Invalid input: deadline_date must be in YYYY-MM-DD format" in result
 
 
-@patch("todoist_mcp._get_api_client")
+@patch("plugvan.todoist.client.get_api_client")
 def test_update_task_due_string_and_deadline_date_together(mock_get_client):
     """due_string ve deadline_date aynı anda güncellendiğinde birbirini geçersiz kılmadan,
     ikisi de bağımsız alanlar olarak tek bir api.update_task çağrısına dahil edilmelidir."""
@@ -854,7 +866,7 @@ def test_update_task_due_string_and_deadline_date_together(mock_get_client):
     )
 
 
-@patch("todoist_mcp._get_api_client")
+@patch("plugvan.todoist.client.get_api_client")
 def test_update_task_deadline_date_403_reports_plan_restriction(mock_get_client):
     """deadline_date güncellenirken 403 Forbidden alınırsa, Free/Beginner planında Deadline
     özelliğinin desteklenmediğini açıklayan özel bir hata mesajı dönmelidir."""
@@ -870,7 +882,7 @@ def test_update_task_deadline_date_403_reports_plan_restriction(mock_get_client)
     )
 
 
-@patch("todoist_mcp._get_api_client")
+@patch("plugvan.todoist.client.get_api_client")
 def test_update_task_403_without_deadline_date_uses_generic_message(mock_get_client):
     """deadline_date olmadan gelen bir 403, plan-kısıtlaması mesajını değil görev-kimliğini
     içeren genel hata mesajını dönmelidir (deadline dışı 403 sebepleri etkilenmemeli)."""
@@ -887,7 +899,7 @@ def test_update_task_403_without_deadline_date_uses_generic_message(mock_get_cli
 # DELETE_TASK TESTS
 # =====================================================================
 
-@patch("todoist_mcp._get_api_client")
+@patch("plugvan.todoist.client.get_api_client")
 def test_delete_task_success(mock_get_client):
     mock_api = MagicMock()
     mock_get_client.return_value = mock_api
@@ -898,7 +910,7 @@ def test_delete_task_success(mock_get_client):
     mock_api.delete_task.assert_called_once_with(task_id="task_to_del")
 
 
-@patch("todoist_mcp._get_api_client")
+@patch("plugvan.todoist.client.get_api_client")
 def test_delete_task_unsuccessful(mock_get_client):
     mock_api = MagicMock()
     mock_get_client.return_value = mock_api
@@ -913,7 +925,7 @@ def test_delete_task_empty_id():
     assert "❌ Invalid input: Task ID cannot be empty" in result
 
 
-@patch("todoist_mcp._get_api_client")
+@patch("plugvan.todoist.client.get_api_client")
 def test_delete_task_sanitizes_exception(mock_get_client):
     mock_api = MagicMock()
     mock_get_client.return_value = mock_api
@@ -928,7 +940,7 @@ def test_delete_task_sanitizes_exception(mock_get_client):
 # GET_PROJECT TESTS
 # =====================================================================
 
-@patch("todoist_mcp._get_api_client")
+@patch("plugvan.todoist.client.get_api_client")
 def test_get_project_success(mock_get_client):
     mock_api = MagicMock()
     mock_get_client.return_value = mock_api
@@ -952,7 +964,7 @@ def test_get_project_success(mock_get_client):
     mock_api.get_project.assert_called_once_with(project_id="proj_777")
 
 
-@patch("todoist_mcp._get_api_client")
+@patch("plugvan.todoist.client.get_api_client")
 def test_get_project_without_parent_shows_top_level(mock_get_client):
     mock_api = MagicMock()
     mock_get_client.return_value = mock_api
@@ -975,7 +987,7 @@ def test_get_project_id_too_long():
     assert f"❌ Invalid input: Project ID exceeds maximum length of {MAX_TASK_ID_LENGTH} characters." in result
 
 
-@patch("todoist_mcp._get_api_client")
+@patch("plugvan.todoist.client.get_api_client")
 def test_get_project_sanitizes_exception_and_logs_cleanly(mock_get_client, caplog):
     mock_api = MagicMock()
     mock_get_client.return_value = mock_api
@@ -995,7 +1007,7 @@ def test_get_project_sanitizes_exception_and_logs_cleanly(mock_get_client, caplo
 # CREATE_PROJECT & NESTED PROJECT TESTS
 # =====================================================================
 
-@patch("todoist_mcp._get_api_client")
+@patch("plugvan.todoist.client.get_api_client")
 def test_create_project_success(mock_get_client):
     mock_api = MagicMock()
     mock_get_client.return_value = mock_api
@@ -1009,7 +1021,7 @@ def test_create_project_success(mock_get_client):
     mock_api.add_project.assert_called_once_with(name="Yeni Proje", color="berry_red")
 
 
-@patch("todoist_mcp._get_api_client")
+@patch("plugvan.todoist.client.get_api_client")
 def test_create_project_with_parent_success(mock_get_client):
     mock_api = MagicMock()
     mock_get_client.return_value = mock_api
@@ -1028,7 +1040,7 @@ def test_create_project_with_parent_success(mock_get_client):
     mock_api.add_project.assert_called_once_with(name="Alt Kategori", parent_id="parent_123")
 
 
-@patch("todoist_mcp._get_api_client")
+@patch("plugvan.todoist.client.get_api_client")
 def test_create_project_parent_not_found(mock_get_client):
     mock_api = MagicMock()
     mock_get_client.return_value = mock_api
@@ -1055,7 +1067,7 @@ def test_create_project_color_too_long():
     assert "❌ Invalid input: Color name exceeds maximum length" in result
 
 
-@patch("todoist_mcp._get_api_client")
+@patch("plugvan.todoist.client.get_api_client")
 def test_create_project_sanitizes_exception(mock_get_client):
     mock_api = MagicMock()
     mock_get_client.return_value = mock_api
@@ -1070,7 +1082,7 @@ def test_create_project_sanitizes_exception(mock_get_client):
 # UPDATE_PROJECT TESTS
 # =====================================================================
 
-@patch("todoist_mcp._get_api_client")
+@patch("plugvan.todoist.client.get_api_client")
 def test_update_project_name_only(mock_get_client):
     """Sadece name verildiğinde body'de yalnızca name gönderilmeli."""
     mock_api = MagicMock()
@@ -1086,7 +1098,7 @@ def test_update_project_name_only(mock_get_client):
     mock_api.update_project.assert_called_once_with(project_id="proj_1", name="Yeni İsim")
 
 
-@patch("todoist_mcp._get_api_client")
+@patch("plugvan.todoist.client.get_api_client")
 def test_update_project_color_only(mock_get_client):
     """Sadece color verildiğinde body'de yalnızca color gönderilmeli."""
     mock_api = MagicMock()
@@ -1102,7 +1114,7 @@ def test_update_project_color_only(mock_get_client):
     mock_api.update_project.assert_called_once_with(project_id="proj_2", color="teal")
 
 
-@patch("todoist_mcp._get_api_client")
+@patch("plugvan.todoist.client.get_api_client")
 def test_update_project_name_and_color(mock_get_client):
     """İkisi birden verildiğinde body'de her ikisi de gönderilmeli."""
     mock_api = MagicMock()
@@ -1129,7 +1141,7 @@ def test_update_project_empty_identifier():
     assert "❌ Invalid input: Project identifier cannot be empty" in result
 
 
-@patch("todoist_mcp._get_api_client")
+@patch("plugvan.todoist.client.get_api_client")
 def test_update_project_not_found(mock_get_client):
     mock_api = MagicMock()
     mock_get_client.return_value = mock_api
@@ -1140,7 +1152,7 @@ def test_update_project_not_found(mock_get_client):
     mock_api.update_project.assert_not_called()
 
 
-@patch("todoist_mcp._get_api_client")
+@patch("plugvan.todoist.client.get_api_client")
 def test_update_project_sanitizes_exception(mock_get_client):
     mock_api = MagicMock()
     mock_get_client.return_value = mock_api
@@ -1157,7 +1169,7 @@ def test_update_project_sanitizes_exception(mock_get_client):
 # DELETE_PROJECT TESTS
 # =====================================================================
 
-@patch("todoist_mcp._get_api_client")
+@patch("plugvan.todoist.client.get_api_client")
 def test_delete_project_by_id_success(mock_get_client):
     mock_api = MagicMock()
     mock_get_client.return_value = mock_api
@@ -1170,7 +1182,7 @@ def test_delete_project_by_id_success(mock_get_client):
     mock_api.delete_project.assert_called_once_with(project_id="proj_123")
 
 
-@patch("todoist_mcp._get_api_client")
+@patch("plugvan.todoist.client.get_api_client")
 def test_delete_project_by_name_success(mock_get_client):
     mock_api = MagicMock()
     mock_get_client.return_value = mock_api
@@ -1183,7 +1195,7 @@ def test_delete_project_by_name_success(mock_get_client):
     mock_api.delete_project.assert_called_once_with(project_id="proj_456")
 
 
-@patch("todoist_mcp._get_api_client")
+@patch("plugvan.todoist.client.get_api_client")
 def test_delete_project_not_found(mock_get_client):
     mock_api = MagicMock()
     mock_get_client.return_value = mock_api
@@ -1202,7 +1214,7 @@ def test_delete_project_empty_identifier():
 # LIST_PROJECTS TESTS (HIERARCHICAL)
 # =====================================================================
 
-@patch("todoist_mcp._get_api_client")
+@patch("plugvan.todoist.client.get_api_client")
 def test_list_projects_hierarchical(mock_get_client):
     mock_api = MagicMock()
     mock_get_client.return_value = mock_api
@@ -1218,7 +1230,7 @@ def test_list_projects_hierarchical(mock_get_client):
     assert "└── [p3] Alt Görevler" in result
 
 
-@patch("todoist_mcp._get_api_client")
+@patch("plugvan.todoist.client.get_api_client")
 def test_list_projects_empty(mock_get_client):
     mock_api = MagicMock()
     mock_get_client.return_value = mock_api
@@ -1232,7 +1244,7 @@ def test_list_projects_empty(mock_get_client):
 # LABELS (LIST_LABELS, CREATE_LABEL, UPDATE_LABEL, DELETE_LABEL) TESTS
 # =====================================================================
 
-@patch("todoist_mcp._get_api_client")
+@patch("plugvan.todoist.client.get_api_client")
 def test_list_labels_success(mock_get_client):
     mock_api = MagicMock()
     mock_get_client.return_value = mock_api
@@ -1246,7 +1258,7 @@ def test_list_labels_success(mock_get_client):
     assert "2. [lbl_2] @iş, Renk: blue" in result
 
 
-@patch("todoist_mcp._get_api_client")
+@patch("plugvan.todoist.client.get_api_client")
 def test_list_labels_empty(mock_get_client):
     mock_api = MagicMock()
     mock_get_client.return_value = mock_api
@@ -1256,7 +1268,7 @@ def test_list_labels_empty(mock_get_client):
     assert "ℹ️ Todoist hesabınızda herhangi bir etiket bulunamadı." in result
 
 
-@patch("todoist_mcp._get_api_client")
+@patch("plugvan.todoist.client.get_api_client")
 def test_list_labels_sanitizes_exception(mock_get_client):
     mock_api = MagicMock()
     mock_get_client.return_value = mock_api
@@ -1267,7 +1279,7 @@ def test_list_labels_sanitizes_exception(mock_get_client):
     assert "SECRET" not in result
 
 
-@patch("todoist_mcp._get_api_client")
+@patch("plugvan.todoist.client.get_api_client")
 def test_create_label_success(mock_get_client):
     mock_api = MagicMock()
     mock_get_client.return_value = mock_api
@@ -1292,7 +1304,7 @@ def test_create_label_name_too_long():
     assert "❌ Invalid input: Label name exceeds maximum length" in result
 
 
-@patch("todoist_mcp._get_api_client")
+@patch("plugvan.todoist.client.get_api_client")
 def test_create_label_sanitizes_exception(mock_get_client):
     mock_api = MagicMock()
     mock_get_client.return_value = mock_api
@@ -1303,7 +1315,7 @@ def test_create_label_sanitizes_exception(mock_get_client):
     assert "SECRET" not in result
 
 
-@patch("todoist_mcp._get_api_client")
+@patch("plugvan.todoist.client.get_api_client")
 def test_update_label_success(mock_get_client):
     mock_api = MagicMock()
     mock_get_client.return_value = mock_api
@@ -1317,7 +1329,7 @@ def test_update_label_success(mock_get_client):
     mock_api.update_label.assert_called_once_with(label_id="lbl_100", name="yeni_ad", color="charcoal")
 
 
-@patch("todoist_mcp._get_api_client")
+@patch("plugvan.todoist.client.get_api_client")
 def test_update_label_not_found(mock_get_client):
     mock_api = MagicMock()
     mock_get_client.return_value = mock_api
@@ -1332,7 +1344,7 @@ def test_update_label_no_fields():
     assert "⚠️ Güncellenecek hiçbir alan belirtilmedi" in result
 
 
-@patch("todoist_mcp._get_api_client")
+@patch("plugvan.todoist.client.get_api_client")
 def test_delete_label_success(mock_get_client):
     mock_api = MagicMock()
     mock_get_client.return_value = mock_api
@@ -1345,7 +1357,7 @@ def test_delete_label_success(mock_get_client):
     mock_api.delete_label.assert_called_once_with(label_id="lbl_200")
 
 
-@patch("todoist_mcp._get_api_client")
+@patch("plugvan.todoist.client.get_api_client")
 def test_delete_label_not_found(mock_get_client):
     mock_api = MagicMock()
     mock_get_client.return_value = mock_api
@@ -1359,7 +1371,7 @@ def test_delete_label_not_found(mock_get_client):
 # SECTIONS (CREATE_SECTION, LIST_SECTIONS, UPDATE_SECTION, DELETE_SECTION) TESTS
 # =====================================================================
 
-@patch("todoist_mcp._get_api_client")
+@patch("plugvan.todoist.client.get_api_client")
 def test_create_section_success(mock_get_client):
     mock_api = MagicMock()
     mock_get_client.return_value = mock_api
@@ -1375,7 +1387,7 @@ def test_create_section_success(mock_get_client):
     mock_api.add_section.assert_called_once_with(name="In Progress", project_id="proj_10")
 
 
-@patch("todoist_mcp._get_api_client")
+@patch("plugvan.todoist.client.get_api_client")
 def test_create_section_project_not_found(mock_get_client):
     mock_api = MagicMock()
     mock_get_client.return_value = mock_api
@@ -1385,7 +1397,7 @@ def test_create_section_project_not_found(mock_get_client):
     assert "⚠️ Bölüm oluşturulacak hedef proje bulunamadı: 'Olmayan Proje'." in result
 
 
-@patch("todoist_mcp._get_api_client")
+@patch("plugvan.todoist.client.get_api_client")
 def test_list_sections_success(mock_get_client):
     mock_api = MagicMock()
     mock_get_client.return_value = mock_api
@@ -1401,7 +1413,7 @@ def test_list_sections_success(mock_get_client):
     assert "2. [sec_2] Done" in result
 
 
-@patch("todoist_mcp._get_api_client")
+@patch("plugvan.todoist.client.get_api_client")
 def test_list_sections_empty(mock_get_client):
     mock_api = MagicMock()
     mock_get_client.return_value = mock_api
@@ -1411,7 +1423,7 @@ def test_list_sections_empty(mock_get_client):
     assert "ℹ️ Todoist hesabınızda herhangi bir bölüm bulunamadı." in result
 
 
-@patch("todoist_mcp._get_api_client")
+@patch("plugvan.todoist.client.get_api_client")
 def test_update_section_rename_by_name(mock_get_client):
     mock_api = MagicMock()
     mock_get_client.return_value = mock_api
@@ -1424,7 +1436,7 @@ def test_update_section_rename_by_name(mock_get_client):
     mock_api.update_section.assert_called_once_with(section_id="sec_7", name="Yapılacaklar")
 
 
-@patch("todoist_mcp._get_api_client")
+@patch("plugvan.todoist.client.get_api_client")
 def test_update_section_rename_by_id(mock_get_client):
     mock_api = MagicMock()
     mock_get_client.return_value = mock_api
@@ -1435,7 +1447,7 @@ def test_update_section_rename_by_id(mock_get_client):
     mock_api.update_section.assert_called_once_with(section_id="sec_8", name="Bitti")
 
 
-@patch("todoist_mcp._get_api_client")
+@patch("plugvan.todoist.client.get_api_client")
 def test_update_section_scoped_to_project(mock_get_client):
     mock_api = MagicMock()
     mock_get_client.return_value = mock_api
@@ -1448,7 +1460,7 @@ def test_update_section_scoped_to_project(mock_get_client):
     mock_api.update_section.assert_called_once_with(section_id="sec_9", name="Icebox")
 
 
-@patch("todoist_mcp._get_api_client")
+@patch("plugvan.todoist.client.get_api_client")
 def test_update_section_project_not_found(mock_get_client):
     mock_api = MagicMock()
     mock_get_client.return_value = mock_api
@@ -1459,7 +1471,7 @@ def test_update_section_project_not_found(mock_get_client):
     mock_api.update_section.assert_not_called()
 
 
-@patch("todoist_mcp._get_api_client")
+@patch("plugvan.todoist.client.get_api_client")
 def test_update_section_not_found(mock_get_client):
     mock_api = MagicMock()
     mock_get_client.return_value = mock_api
@@ -1485,7 +1497,7 @@ def test_update_section_name_too_long():
     assert "New section name exceeds maximum length" in result
 
 
-@patch("todoist_mcp._get_api_client")
+@patch("plugvan.todoist.client.get_api_client")
 def test_update_section_sanitizes_exception(mock_get_client):
     mock_api = MagicMock()
     mock_get_client.return_value = mock_api
@@ -1497,7 +1509,7 @@ def test_update_section_sanitizes_exception(mock_get_client):
     assert "SECRET" not in result
 
 
-@patch("todoist_mcp._get_api_client")
+@patch("plugvan.todoist.client.get_api_client")
 def test_delete_section_success(mock_get_client):
     mock_api = MagicMock()
     mock_get_client.return_value = mock_api
@@ -1510,7 +1522,7 @@ def test_delete_section_success(mock_get_client):
     mock_api.delete_section.assert_called_once_with(section_id="sec_123")
 
 
-@patch("todoist_mcp._get_api_client")
+@patch("plugvan.todoist.client.get_api_client")
 def test_delete_section_not_found(mock_get_client):
     mock_api = MagicMock()
     mock_get_client.return_value = mock_api
@@ -1524,7 +1536,7 @@ def test_delete_section_not_found(mock_get_client):
 # COMMENTS (ADD_COMMENT, GET_COMMENTS) TESTS
 # =====================================================================
 
-@patch("todoist_mcp._get_api_client")
+@patch("plugvan.todoist.client.get_api_client")
 def test_add_comment_success(mock_get_client):
     mock_api = MagicMock()
     mock_get_client.return_value = mock_api
@@ -1548,7 +1560,7 @@ def test_add_comment_empty_content():
     assert "❌ Invalid input: Comment content cannot be empty" in result
 
 
-@patch("todoist_mcp._get_api_client")
+@patch("plugvan.todoist.client.get_api_client")
 def test_get_comments_success(mock_get_client):
     mock_api = MagicMock()
     mock_get_client.return_value = mock_api
@@ -1562,7 +1574,7 @@ def test_get_comments_success(mock_get_client):
     assert "2. [c2] [2026-08-24 11:00] Not 2" in result
 
 
-@patch("todoist_mcp._get_api_client")
+@patch("plugvan.todoist.client.get_api_client")
 def test_get_comments_empty(mock_get_client):
     mock_api = MagicMock()
     mock_get_client.return_value = mock_api
