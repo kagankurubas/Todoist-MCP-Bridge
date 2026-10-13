@@ -11,9 +11,13 @@ from plugvan.todoist.limits import (
     MAX_SECTION_NAME_LENGTH,
 )
 from plugvan.todoist.resolvers import (
+    Ambiguous,
+    LookupFailed,
+    NotFound,
     _get_all_sections,
-    _resolve_project,
-    _resolve_section,
+    ambiguous_message,
+    resolve_project,
+    resolve_section,
 )
 
 logger = logging.getLogger("todoist_mcp")
@@ -55,12 +59,19 @@ def create_section(
     if len(clean_project) > MAX_PROJECT_NAME_LENGTH:
         return f"❌ Invalid input: Project identifier exceeds maximum length of {MAX_PROJECT_NAME_LENGTH} characters."
 
+    failure_message = f"❌ Failed to create section '{clean_name}' in Todoist. Check server logs for details."
     try:
         api = client.get_api_client()
-        project_id, project_name = _resolve_project(api, clean_project)
+        project = resolve_project(api, clean_project, allow_partial=True, allow_inbox_alias=True)
 
-        if not project_id:
+        if isinstance(project, LookupFailed):
+            return failure_message
+        if isinstance(project, Ambiguous):
+            return ambiguous_message(project, "proje")
+        # Found(None, ...) is an Inbox alias with no listed Inbox: a section needs a real project ID.
+        if isinstance(project, NotFound) or project.id is None:
             return f"⚠️ Bölüm oluşturulacak hedef proje bulunamadı: '{clean_project}'."
+        project_id, project_name = project.id, project.name
 
         section = api.add_section(name=clean_name, project_id=project_id)
 
@@ -77,7 +88,7 @@ def create_section(
             type(e).__name__,
             exc_info=False,
         )
-        return f"❌ Failed to create section '{clean_name}' in Todoist. Check server logs for details."
+        return failure_message
 
 
 def list_sections(
@@ -95,15 +106,22 @@ def list_sections(
     if clean_project and len(clean_project) > MAX_PROJECT_NAME_LENGTH:
         return f"❌ Invalid input: Project identifier exceeds maximum length of {MAX_PROJECT_NAME_LENGTH} characters."
 
+    failure_message = "❌ Failed to list sections from Todoist. Check server logs for details."
     try:
         api = client.get_api_client()
         project_id = None
         project_name = None
 
         if clean_project:
-            project_id, project_name = _resolve_project(api, clean_project)
-            if not project_id:
+            project = resolve_project(api, clean_project, allow_partial=True, allow_inbox_alias=True)
+            if isinstance(project, LookupFailed):
+                return failure_message
+            if isinstance(project, Ambiguous):
+                return ambiguous_message(project, "proje")
+            # Found(None, ...) is an Inbox alias with no listed Inbox: listing all sections would be wrong.
+            if isinstance(project, NotFound) or project.id is None:
                 return f"⚠️ Belirtilen proje bulunamadı: '{clean_project}'."
+            project_id, project_name = project.id, project.name
 
         sections = _get_all_sections(api, project_id=project_id)
 
@@ -124,7 +142,7 @@ def list_sections(
             type(e).__name__,
             exc_info=False,
         )
-        return "❌ Failed to list sections from Todoist. Check server logs for details."
+        return failure_message
 
 
 def update_section(
@@ -176,18 +194,33 @@ def update_section(
     if clean_project and len(clean_project) > MAX_PROJECT_NAME_LENGTH:
         return f"❌ Invalid input: Project identifier exceeds maximum length of {MAX_PROJECT_NAME_LENGTH} characters."
 
+    failure_message = f"❌ Failed to update section '{clean_identifier}' in Todoist. Check server logs for details."
+    section_not_found = f"⚠️ Güncellenecek bölüm bulunamadı: '{clean_identifier}'."
     try:
         api = client.get_api_client()
 
         project_id = None
         if clean_project:
-            project_id, _ = _resolve_project(api, clean_project)
-            if not project_id:
+            project = resolve_project(api, clean_project, allow_inbox_alias=True)
+            if isinstance(project, LookupFailed):
+                return failure_message
+            if isinstance(project, Ambiguous):
+                return ambiguous_message(project, "proje")
+            if isinstance(project, NotFound):
                 return f"⚠️ Belirtilen proje bulunamadı: '{clean_project}'."
+            if project.id is None:
+                # Inbox alias without a listed Inbox project: there is no ID to scope the search to.
+                return section_not_found
+            project_id = project.id
 
-        section_id, old_name = _resolve_section(api, clean_identifier, project_id=project_id)
-        if not section_id:
-            return f"⚠️ Güncellenecek bölüm bulunamadı: '{clean_identifier}'."
+        section = resolve_section(api, clean_identifier, project_id=project_id)
+        if isinstance(section, LookupFailed):
+            return failure_message
+        if isinstance(section, Ambiguous):
+            return ambiguous_message(section, "bölüm")
+        if isinstance(section, NotFound):
+            return section_not_found
+        section_id, old_name = section.id, section.name
 
         api.update_section(section_id=section_id, name=clean_name)
 
@@ -203,7 +236,7 @@ def update_section(
             type(e).__name__,
             exc_info=False,
         )
-        return f"❌ Failed to update section '{clean_identifier}' in Todoist. Check server logs for details."
+        return failure_message
 
 
 def delete_section(
@@ -227,12 +260,18 @@ def delete_section(
     if len(clean_identifier) > MAX_SECTION_NAME_LENGTH:
         return f"❌ Invalid input: Section identifier exceeds maximum length of {MAX_SECTION_NAME_LENGTH} characters."
 
+    failure_message = f"❌ Failed to delete section '{clean_identifier}' in Todoist. Check server logs for details."
     try:
         api = client.get_api_client()
-        section_id, section_name = _resolve_section(api, clean_identifier)
+        section = resolve_section(api, clean_identifier)
 
-        if not section_id:
+        if isinstance(section, LookupFailed):
+            return failure_message
+        if isinstance(section, Ambiguous):
+            return ambiguous_message(section, "bölüm")
+        if isinstance(section, NotFound):
             return f"⚠️ Silinecek bölüm bulunamadı: '{clean_identifier}'."
+        section_id, section_name = section.id, section.name
 
         success = api.delete_section(section_id=section_id)
         display_name = f"'{section_name}' (ID: {section_id})" if section_name else f"ID: {section_id}"
@@ -248,4 +287,4 @@ def delete_section(
             type(e).__name__,
             exc_info=False,
         )
-        return f"❌ Failed to delete section '{clean_identifier}' in Todoist. Check server logs for details."
+        return failure_message

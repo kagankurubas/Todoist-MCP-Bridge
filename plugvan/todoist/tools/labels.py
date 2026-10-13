@@ -11,8 +11,12 @@ from plugvan.todoist.limits import (
     MAX_LABEL_NAME_LENGTH,
 )
 from plugvan.todoist.resolvers import (
+    Ambiguous,
+    LookupFailed,
+    NotFound,
     _get_all_labels,
-    _resolve_label,
+    ambiguous_message,
+    resolve_label,
 )
 
 logger = logging.getLogger("todoist_mcp")
@@ -153,12 +157,18 @@ def update_label(
     if clean_new_name is None and clean_color is None:
         return "⚠️ Güncellenecek hiçbir alan belirtilmedi. Lütfen new_name veya color parametresi girin."
 
+    failure_message = f"❌ Failed to update label '@{clean_identifier}' in Todoist. Check server logs for details."
     try:
         api = client.get_api_client()
-        label_id, old_name = _resolve_label(api, clean_identifier)
+        resolved = resolve_label(api, clean_identifier)
 
-        if not label_id:
+        if isinstance(resolved, LookupFailed):
+            return failure_message
+        if isinstance(resolved, Ambiguous):
+            return ambiguous_message(resolved, "etiket", shown_query=f"@{clean_identifier}")
+        if isinstance(resolved, NotFound):
             return f"⚠️ Güncellenecek etiket bulunamadı: '@{clean_identifier}'."
+        label_id = resolved.id
 
         kwargs = {}
         updated_fields = []
@@ -184,7 +194,7 @@ def update_label(
             type(e).__name__,
             exc_info=False,
         )
-        return f"❌ Failed to update label '@{clean_identifier}' in Todoist. Check server logs for details."
+        return failure_message
 
 
 def delete_label(
@@ -208,12 +218,18 @@ def delete_label(
     if len(clean_identifier) > MAX_LABEL_NAME_LENGTH:
         return f"❌ Invalid input: Label identifier exceeds maximum length of {MAX_LABEL_NAME_LENGTH} characters."
 
+    failure_message = f"❌ Failed to delete label '@{clean_identifier}' in Todoist. Check server logs for details."
     try:
         api = client.get_api_client()
-        label_id, label_name = _resolve_label(api, clean_identifier)
+        resolved = resolve_label(api, clean_identifier)
 
-        if not label_id:
+        if isinstance(resolved, LookupFailed):
+            return failure_message
+        if isinstance(resolved, Ambiguous):
+            return ambiguous_message(resolved, "etiket", shown_query=f"@{clean_identifier}")
+        if isinstance(resolved, NotFound):
             return f"⚠️ Silinecek etiket bulunamadı: '@{clean_identifier}'."
+        label_id, label_name = resolved.id, resolved.name
 
         success = api.delete_label(label_id=label_id)
         display_name = f"'@{label_name}' (ID: {label_id})" if label_name else f"ID: {label_id}"
@@ -229,4 +245,4 @@ def delete_label(
             type(e).__name__,
             exc_info=False,
         )
-        return f"❌ Failed to delete label '@{clean_identifier}' in Todoist. Check server logs for details."
+        return failure_message

@@ -12,8 +12,12 @@ from plugvan.todoist.limits import (
     MAX_COLOR_LENGTH,
 )
 from plugvan.todoist.resolvers import (
+    Ambiguous,
+    LookupFailed,
+    NotFound,
     _get_all_projects,
-    _resolve_project,
+    ambiguous_message,
+    resolve_project,
 )
 
 logger = logging.getLogger("todoist_mcp")
@@ -168,15 +172,22 @@ def create_project(
     if clean_color and len(clean_color) > MAX_COLOR_LENGTH:
         return f"❌ Invalid input: Color name exceeds maximum length of {MAX_COLOR_LENGTH} characters."
 
+    failure_message = f"❌ Failed to create project '{clean_name}' in Todoist. Check server logs for details."
     try:
         api = client.get_api_client()
         kwargs = {}
         parent_display = ""
 
         if clean_parent:
-            parent_id, parent_name = _resolve_project(api, clean_parent)
-            if not parent_id:
+            parent = resolve_project(api, clean_parent, allow_partial=True, allow_inbox_alias=True)
+            if isinstance(parent, LookupFailed):
+                return failure_message
+            if isinstance(parent, Ambiguous):
+                return ambiguous_message(parent, "proje")
+            # Found(None, ...) is an Inbox alias with no listed Inbox: a parent needs a real project ID.
+            if isinstance(parent, NotFound) or parent.id is None:
                 return f"⚠️ Belirtilen üst proje bulunamadı: '{clean_parent}'."
+            parent_id, parent_name = parent.id, parent.name
             kwargs["parent_id"] = parent_id
             parent_display = f"\n• Üst Proje: '{parent_name}' (ID: {parent_id})"
 
@@ -203,7 +214,7 @@ def create_project(
             type(e).__name__,
             exc_info=False,
         )
-        return f"❌ Failed to create project '{clean_name}' in Todoist. Check server logs for details."
+        return failure_message
 
 
 def update_project(
@@ -262,12 +273,18 @@ def update_project(
     if clean_name is None and clean_color is None:
         return "⚠️ Güncellenecek hiçbir alan belirtilmedi. Lütfen name veya color parametresi girin."
 
+    failure_message = f"❌ Failed to update project '{clean_identifier}' in Todoist. Check server logs for details."
     try:
         api = client.get_api_client()
-        project_id, old_name = _resolve_project(api, clean_identifier)
+        resolved = resolve_project(api, clean_identifier)
 
-        if not project_id:
+        if isinstance(resolved, LookupFailed):
+            return failure_message
+        if isinstance(resolved, Ambiguous):
+            return ambiguous_message(resolved, "proje")
+        if isinstance(resolved, NotFound):
             return f"⚠️ Güncellenecek proje bulunamadı: '{clean_identifier}'."
+        project_id = resolved.id
 
         kwargs = {}
         updated_fields = []
@@ -293,7 +310,7 @@ def update_project(
             type(e).__name__,
             exc_info=False,
         )
-        return f"❌ Failed to update project '{clean_identifier}' in Todoist. Check server logs for details."
+        return failure_message
 
 
 def delete_project(
@@ -317,12 +334,18 @@ def delete_project(
     if len(clean_identifier) > MAX_PROJECT_NAME_LENGTH:
         return f"❌ Invalid input: Project identifier exceeds maximum length of {MAX_PROJECT_NAME_LENGTH} characters."
 
+    failure_message = f"❌ Failed to delete project '{clean_identifier}' in Todoist. Check server logs for details."
     try:
         api = client.get_api_client()
-        project_id, project_name = _resolve_project(api, clean_identifier)
+        resolved = resolve_project(api, clean_identifier)
 
-        if not project_id:
+        if isinstance(resolved, LookupFailed):
+            return failure_message
+        if isinstance(resolved, Ambiguous):
+            return ambiguous_message(resolved, "proje")
+        if isinstance(resolved, NotFound):
             return f"⚠️ Silinecek proje bulunamadı: '{clean_identifier}'."
+        project_id, project_name = resolved.id, resolved.name
 
         success = api.delete_project(project_id=project_id)
         display_name = f"'{project_name}' (ID: {project_id})" if project_name else f"ID: {project_id}"
@@ -338,4 +361,4 @@ def delete_project(
             type(e).__name__,
             exc_info=False,
         )
-        return f"❌ Failed to delete project '{clean_identifier}' in Todoist. Check server logs for details."
+        return failure_message

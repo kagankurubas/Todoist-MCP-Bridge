@@ -17,8 +17,13 @@ from plugvan.todoist.limits import (
     MAX_SECTION_NAME_LENGTH,
 )
 from plugvan.todoist.resolvers import (
-    _find_project_id,
-    _resolve_section,
+    INBOX_DISPLAY_NAME,
+    Ambiguous,
+    LookupFailed,
+    NotFound,
+    ambiguous_message,
+    resolve_project,
+    resolve_section,
 )
 
 logger = logging.getLogger("todoist_mcp")
@@ -174,16 +179,35 @@ def create_task(
         except ValueError:
             return f"❌ Invalid input: deadline_date must be in YYYY-MM-DD format (received: '{clean_deadline_date}')."
 
+    failure_message = "❌ Todoist task creation failed. Check server logs for details."
     try:
         api = client.get_api_client()
-        project_id = _find_project_id(api, clean_project_name) if clean_project_name else None
+
+        # Resolve the target fully before creating anything. An empty project name means the Inbox.
+        project = resolve_project(
+            api, clean_project_name or INBOX_DISPLAY_NAME, allow_partial=True, allow_inbox_alias=True
+        )
+        if isinstance(project, LookupFailed):
+            return failure_message
+        if isinstance(project, Ambiguous):
+            return ambiguous_message(project, "proje")
+        if isinstance(project, NotFound):
+            return f"⚠️ Belirtilen proje bulunamadı: '{clean_project_name}'."
+        project_id = project.id
 
         section_id = None
         section_display_name = ""
         if clean_section:
-            section_id, section_display_name = _resolve_section(api, clean_section, project_id=project_id)
-            if not section_id:
+            # Sections are only searched inside the resolved project. An Inbox alias with no
+            # listed Inbox has no project ID to scope by, so the section cannot be found.
+            section = resolve_section(api, clean_section, project_id=project_id) if project_id else NotFound(clean_section)
+            if isinstance(section, LookupFailed):
+                return failure_message
+            if isinstance(section, Ambiguous):
+                return ambiguous_message(section, "bölüm")
+            if isinstance(section, NotFound):
                 return f"⚠️ Belirtilen bölüm bulunamadı: '{clean_section}'."
+            section_id, section_display_name = section.id, section.name
 
         task_kwargs = {
             "content": clean_content,
@@ -204,7 +228,7 @@ def create_task(
         task = api.add_task(**task_kwargs)
 
         due_info = task.due.string if task.due and task.due.string else (clean_due_string or "Belirtilmedi")
-        project_display = clean_project_name if clean_project_name else "Gelen Kutusu"
+        project_display = project.name
         section_display = f"\n• Bölüm: {section_display_name} (ID: {section_id})" if section_id else ""
         labels_display = f"\n• Etiketler: {', '.join(['@' + l for l in task.labels])}" if getattr(task, "labels", None) else ""
         deadline_display = f"\n• Son Teslim Tarihi (Deadline): {clean_deadline_date}" if clean_deadline_date else ""
@@ -231,7 +255,7 @@ def create_task(
         _log_http_error_detail(e)
         if _is_deadline_plan_restriction(e, parsed_deadline_date is not None):
             return "❌ Deadline özelliği Todoist Free/Beginner planında desteklenmiyor — Pro veya Business plan gerekiyor (403 Forbidden)."
-        return "❌ Todoist task creation failed. Check server logs for details."
+        return failure_message
 
 
 def list_tasks(
@@ -585,11 +609,52 @@ def update_task(
     ):
         return "⚠️ Güncellenecek hiçbir alan belirtilmedi. Lütfen en az bir parametre (content, description, project_name, due_string, priority, labels, section_name_or_id, parent_id, deadline_date) girin."
 
+    failure_message = f"❌ Failed to update task in Todoist (ID: {clean_task_id}). Check server logs for details."
     try:
         api = client.get_api_client()
         updated_fields = []
 
-        # 1. Update task attributes if provided
+        # 1. Resolve the move target (project, then section) before writing anything.
+        target_project_id = None
+        target_project_name = None
+        if clean_project_name is not None:
+            project = resolve_project(api, clean_project_name, allow_partial=True, allow_inbox_alias=True)
+            if isinstance(project, LookupFailed):
+                return failure_message
+            if isinstance(project, Ambiguous):
+                return ambiguous_message(project, "proje")
+            # Found(None, ...) is an Inbox alias with no listed Inbox: moving needs a real project ID.
+            if isinstance(project, NotFound) or project.id is None:
+                return f"⚠️ Hedef proje bulunamadı: '{clean_project_name}'."
+            target_project_id, target_project_name = project.id, project.name
+
+        target_section_id = None
+        sec_name = None
+        if clean_section is not None:
+            # Sections are only searched inside the target project, or the task's current one.
+            scope_project_id = target_project_id
+            if scope_project_id is None:
+                # A resolution step: on failure log error_type only, never the HTTP status/body.
+                try:
+                    scope_project_id = api.get_task(task_id=clean_task_id).project_id
+                except Exception as e:
+                    logger.error(
+                        "Failed to look up the task's current project for section resolution (task_id=%s, error_type=%s)",
+                        clean_task_id,
+                        type(e).__name__,
+                        exc_info=False,
+                    )
+                    return failure_message
+            section = resolve_section(api, clean_section, project_id=scope_project_id)
+            if isinstance(section, LookupFailed):
+                return failure_message
+            if isinstance(section, Ambiguous):
+                return ambiguous_message(section, "bölüm")
+            if isinstance(section, NotFound):
+                return f"⚠️ Hedef bölüm bulunamadı: '{clean_section}'."
+            target_section_id, sec_name = section.id, section.name
+
+        # 2. Update task attributes if provided
         update_kwargs = {}
         if clean_content is not None:
             update_kwargs["content"] = clean_content
@@ -613,19 +678,7 @@ def update_task(
         if update_kwargs:
             api.update_task(task_id=clean_task_id, **update_kwargs)
 
-        # 2. Move task to target project / section if requested
-        target_project_id = None
-        if clean_project_name is not None:
-            target_project_id = _find_project_id(api, clean_project_name)
-            if not target_project_id:
-                return f"⚠️ Görev güncellendi fakat hedef proje bulunamadı: '{clean_project_name}'."
-
-        target_section_id = None
-        if clean_section is not None:
-            target_section_id, sec_name = _resolve_section(api, clean_section, project_id=target_project_id)
-            if not target_section_id:
-                return f"⚠️ Görev güncellendi fakat hedef bölüm bulunamadı: '{clean_section}'."
-
+        # 3. Move task to target project / section / parent if requested.
         # Todoist's update endpoint does not accept parent_id; changing it requires the
         # dedicated move endpoint. That endpoint also has no "clear parent" value (it drops
         # any None field before sending, and there is no documented empty/null parent_id
@@ -641,8 +694,8 @@ def update_task(
             move_kwargs = {}
             if target_project_id is not None:
                 move_kwargs["project_id"] = target_project_id
-                if clean_project_name is not None:
-                    updated_fields.append(f"Hedef Proje: '{clean_project_name}' (ID: {target_project_id})")
+                if target_project_name is not None:
+                    updated_fields.append(f"Hedef Proje: '{target_project_name}' (ID: {target_project_id})")
             if target_section_id is not None:
                 move_kwargs["section_id"] = target_section_id
                 updated_fields.append(f"Hedef Bölüm: '{sec_name}' (ID: {target_section_id})")
@@ -670,7 +723,7 @@ def update_task(
         _log_http_error_detail(e)
         if _is_deadline_plan_restriction(e, parsed_deadline_date is not None):
             return "❌ Deadline özelliği Todoist Free/Beginner planında desteklenmiyor — Pro veya Business plan gerekiyor (403 Forbidden)."
-        return f"❌ Failed to update task in Todoist (ID: {clean_task_id}). Check server logs for details."
+        return failure_message
 
 
 def delete_task(
