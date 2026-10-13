@@ -99,7 +99,7 @@ Todoist MCP Bridge is primarily a local **Model Context Protocol (MCP)** server:
 ### 📁 Project Structure
 
 ```text
-Todoist-MCP-Bridge/
+plugvan/
 ├── plugvan/todoist/        # FastMCP server for Claude Desktop (STDIO, python -m plugvan.todoist)
 ├── app.py                  # FastAPI Web Application & REST API
 ├── send_to_bridge.py       # Standalone CLI client for FastAPI webhook
@@ -124,8 +124,8 @@ Todoist-MCP-Bridge/
 
 #### 1. Clone the Repository
 ```bash
-git clone https://github.com/kagankurubas/Todoist-MCP-Bridge.git
-cd Todoist-MCP-Bridge
+git clone https://github.com/kagankurubas/plugvan.git
+cd plugvan
 ```
 
 #### 2. Create Virtual Environment & Install Dependencies
@@ -295,7 +295,7 @@ Todoist MCP Bridge, temelde yerel çalışan bir **Model Context Protocol (MCP)*
 ### 📁 Proje Yapısı
 
 ```text
-Todoist-MCP-Bridge/
+plugvan/
 ├── plugvan/todoist/        # Claude Desktop için FastMCP sunucusu (STDIO, python -m plugvan.todoist)
 ├── app.py                  # FastAPI Web Uygulaması ve REST API
 ├── send_to_bridge.py       # FastAPI webhook istemcisi (CLI)
@@ -320,8 +320,8 @@ Todoist-MCP-Bridge/
 
 #### 1. Projeyi Klonlayın
 ```bash
-git clone https://github.com/kagankurubas/Todoist-MCP-Bridge.git
-cd Todoist-MCP-Bridge
+git clone https://github.com/kagankurubas/plugvan.git
+cd plugvan
 ```
 
 #### 2. Sanal Ortam Oluşturun ve Paketleri Yükleyin

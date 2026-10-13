@@ -97,7 +97,7 @@ Tool isimlerine uygulama prefix'i (`todoist_create_task` gibi) verme kararı ert
 
 ### Issue tracker
 
-Issue'lar GitHub Issues'ta (`kagankurubas/Todoist-MCP-Bridge`) tutulur, `gh` CLI ile yönetilir. Bkz. `docs/agents/issue-tracker.md`.
+Issue'lar GitHub Issues'ta (`kagankurubas/plugvan`) tutulur, `gh` CLI ile yönetilir. Bkz. `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 
