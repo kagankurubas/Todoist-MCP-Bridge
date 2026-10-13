@@ -21,6 +21,15 @@ def mock_client():
     return TodoistClient(token="mock_token_abc")
 
 
+def _projects_response(*projects):
+    """Mocked GET /projects response, so project-name resolution never reaches the network."""
+    resp = MagicMock()
+    resp.ok = True
+    resp.status_code = 200
+    resp.json.return_value = {"results": list(projects)}
+    return resp
+
+
 def test_task_payload_privacy_in_logs(mock_client, caplog):
     """Test A: Private user content and descriptions are never logged."""
     mock_resp = MagicMock()
@@ -78,12 +87,15 @@ def test_batch_creation_exception_sanitization(mock_client, caplog):
         "HTTP error with Authorization: Bearer SUPER_SECRET_TOKEN_123"
     )
 
-    with patch.object(mock_client, "create_task", side_effect=secret_exception):
+    projects = _projects_response({"id": "inbox_1", "name": "Inbox"})
+    with patch.object(mock_client.session, "get", return_value=projects) as mock_get, \
+            patch.object(mock_client, "create_task", side_effect=secret_exception):
         with caplog.at_level("INFO"):
             batch_result = mock_client.create_tasks_batch(
                 tasks=[{"content": "Task 1", "project_name": "Inbox"}]
             )
 
+    mock_get.assert_called_once()
     assert batch_result["success"] is False
     assert batch_result["total"] == 1
     assert batch_result["created_count"] == 0
@@ -165,10 +177,13 @@ def test_create_task_from_payload_includes_parent_id(mock_client):
     mock_resp.json.return_value = {"id": "task_child", "url": "https://todoist.com/task/task_child"}
 
     payload = TaskPayload(content="Sub-task via payload", parent_id="task_parent_2")
+    projects = _projects_response({"id": "proj_odak", "name": "Odak & Gelişim"})
 
-    with patch.object(mock_client.session, "post", return_value=mock_resp) as mock_post:
+    with patch.object(mock_client.session, "get", return_value=projects) as mock_get, \
+            patch.object(mock_client.session, "post", return_value=mock_resp) as mock_post:
         mock_client.create_task(payload)
 
+    mock_get.assert_called_once()
     sent_payload = mock_post.call_args.kwargs["json"]
     assert sent_payload["parent_id"] == "task_parent_2"
 
@@ -181,10 +196,13 @@ def test_create_task_from_payload_omits_parent_id_when_none(mock_client):
     mock_resp.json.return_value = {"id": "task_1", "url": "https://todoist.com/task/task_1"}
 
     payload = TaskPayload(content="Standalone task via payload")
+    projects = _projects_response({"id": "proj_odak", "name": "Odak & Gelişim"})
 
-    with patch.object(mock_client.session, "post", return_value=mock_resp) as mock_post:
+    with patch.object(mock_client.session, "get", return_value=projects) as mock_get, \
+            patch.object(mock_client.session, "post", return_value=mock_resp) as mock_post:
         mock_client.create_task(payload)
 
+    mock_get.assert_called_once()
     sent_payload = mock_post.call_args.kwargs["json"]
     assert "parent_id" not in sent_payload
 

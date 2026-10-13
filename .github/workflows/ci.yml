@@ -1,0 +1,81 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    # Default types plus label changes, so adding/removing `surface-change` re-runs the checks.
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    name: pytest (${{ matrix.os }}, Python ${{ matrix.python-version }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+        include:
+          - os: windows-latest
+            python-version: "3.14"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+
+      # The suite is fully mocked and offline (network guard in tests/conftest.py) and needs
+      # no credentials. It includes the MCP tool surface snapshot test, which is the guard
+      # against unintended changes to tool names, descriptions and schemas.
+      - name: Run tests
+        run: python -m pytest
+
+  surface-fixture:
+    name: Tool surface fixture unchanged
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      # Regenerating the fixture together with a description change keeps the snapshot test
+      # green, so a PR that touches tests/fixtures/ must carry the `surface-change` label.
+      # Three-dot diff = changes since the merge base, so a moving base branch causes no
+      # false positives.
+      - name: Fail if tests/fixtures/ changed without the surface-change label
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          SURFACE_CHANGE_LABEL: ${{ contains(github.event.pull_request.labels.*.name, 'surface-change') }}
+        run: |
+          if git diff --quiet "$BASE_SHA...$HEAD_SHA" -- tests/fixtures/; then
+            echo "tests/fixtures/ is unchanged."
+            exit 0
+          fi
+          git diff --stat "$BASE_SHA...$HEAD_SHA" -- tests/fixtures/
+          if [ "$SURFACE_CHANGE_LABEL" = "true" ]; then
+            echo "::notice::tests/fixtures/ changed and the PR has the surface-change label; accepted as a deliberate surface change."
+            exit 0
+          fi
+          echo "::error::tests/fixtures/ changed. If this MCP tool surface change is deliberate, add the surface-change label to the PR."
+          exit 1
