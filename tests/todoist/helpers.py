@@ -2,6 +2,7 @@
 Shared mock objects and helpers for the Todoist MCP tool tests.
 """
 
+import inspect
 from unittest.mock import MagicMock
 import httpx
 from todoist_api_python.api import TodoistAPI
@@ -61,16 +62,24 @@ class MockComment:
         self.posted_at = posted_at
 
 
-WRITE_METHOD_PREFIXES = ("add_", "update_", "delete_", "move_", "complete_", "uncomplete_", "archive_", "unarchive_")
+READ_METHOD_PREFIXES = ("get_", "filter_", "search_")
+
+
+def write_method_names() -> list[str]:
+    """Every public TodoistAPI method that is not a known read (get_/filter_/search_).
+
+    Default-deny: a method added to the SDK later counts as a write until proven otherwise.
+    """
+    return [
+        name
+        for name, _ in inspect.getmembers(TodoistAPI, inspect.isfunction)
+        if not name.startswith("_") and not name.startswith(READ_METHOD_PREFIXES)
+    ]
 
 
 def write_call_count(mock_api) -> int:
-    """Total number of write calls made on a mocked SDK client (every add_/update_/delete_/move_/... method of TodoistAPI)."""
-    return sum(
-        getattr(mock_api, name).call_count
-        for name in dir(TodoistAPI)
-        if name.startswith(WRITE_METHOD_PREFIXES)
-    )
+    """Total number of write calls made on a mocked SDK client."""
+    return sum(getattr(mock_api, name).call_count for name in write_method_names())
 
 
 def _make_http_status_error(status_code: int, text: str = "") -> httpx.HTTPStatusError:

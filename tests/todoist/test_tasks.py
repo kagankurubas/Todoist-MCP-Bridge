@@ -3,6 +3,7 @@ Unit and security tests for the Todoist FastMCP Server: task tools.
 All tests use mocks to ensure zero network calls and deterministic results.
 """
 
+import logging
 from datetime import date
 from unittest.mock import MagicMock, patch
 import pytest
@@ -28,6 +29,7 @@ from tests.todoist.helpers import (
     MockSection,
     _make_http_status_error,
     MockTask,
+    write_call_count,
 )
 
 
@@ -816,3 +818,314 @@ def test_delete_task_sanitizes_exception(mock_get_client):
     result = delete_task(task_id="task_err")
     assert result == "❌ Failed to delete task in Todoist (ID: task_err). Check server logs for details."
     assert "SECRET" not in result
+
+
+# =====================================================================
+# CREATE_TASK / UPDATE_TASK: VALIDATE BEFORE WRITE
+# =====================================================================
+
+def _api(projects=(), sections=()):
+    mock_api = MagicMock()
+    mock_api.get_projects.return_value = [list(projects)]
+    mock_api.get_sections.return_value = [list(sections)]
+    mock_api.add_task.return_value = MockTask(task_id="task_new", content="X", priority=1)
+    return mock_api
+
+
+@patch("plugvan.todoist.client.get_api_client")
+def test_create_task_unknown_project_creates_nothing(mock_get_client):
+    """A typo in project_name must not silently put the task in the Inbox."""
+    mock_api = _api(projects=[MockProject("p_work", "Work"), MockProject("inbox_1", "Inbox", is_inbox=True)])
+    mock_get_client.return_value = mock_api
+
+    result = create_task(content="X", project_name="Wrok")
+
+    assert result == "⚠️ Belirtilen proje bulunamadı: 'Wrok'."
+    mock_api.add_task.assert_not_called()
+
+
+@patch("plugvan.todoist.client.get_api_client")
+def test_update_task_unknown_project_writes_nothing(mock_get_client):
+    """update_task must resolve the target project before writing any field."""
+    mock_api = _api(projects=[MockProject("p_work", "Work")])
+    mock_get_client.return_value = mock_api
+
+    result = update_task(task_id="task_1", content="x", project_name="Olmayan Proje")
+
+    assert result == "⚠️ Hedef proje bulunamadı: 'Olmayan Proje'."
+    assert write_call_count(mock_api) == 0
+
+
+@patch("plugvan.todoist.client.get_api_client")
+def test_create_task_unresolved_project_does_not_use_section_from_other_project(mock_get_client):
+    """When the project does not resolve, the section must not be found in some other project."""
+    mock_api = _api(
+        projects=[MockProject("p_work", "Work")],
+        sections=[MockSection("sec_1", "Backlog", project_id="p_work")],
+    )
+    mock_get_client.return_value = mock_api
+
+    result = create_task(content="X", project_name="Wrok", section_name_or_id="Backlog")
+
+    assert result == "⚠️ Belirtilen proje bulunamadı: 'Wrok'."
+    mock_api.add_task.assert_not_called()
+    mock_api.get_sections.assert_not_called()
+
+
+@patch("plugvan.todoist.client.get_api_client")
+def test_create_task_ambiguous_project_creates_nothing(mock_get_client):
+    mock_api = _api(projects=[MockProject("p1", "Proje A"), MockProject("p2", "Proje B")])
+    mock_get_client.return_value = mock_api
+
+    result = create_task(content="X", project_name="Proje")
+
+    assert result == (
+        "⚠️ 'Proje' için birden fazla proje bulundu; lütfen proje ID'sini kullanın:\n"
+        "• Proje A (p1)\n"
+        "• Proje B (p2)"
+    )
+    assert write_call_count(mock_api) == 0
+
+
+@patch("plugvan.todoist.client.get_api_client")
+def test_create_task_unique_partial_project_shows_resolved_name(mock_get_client):
+    mock_api = _api(projects=[MockProject("p_odak", "Odak & Gelişim"), MockProject("p2", "Kişisel")])
+    mock_get_client.return_value = mock_api
+
+    result = create_task(content="X", project_name="odak")
+
+    assert "• Proje: Odak & Gelişim" in result
+    assert "• Proje: odak" not in result
+    assert mock_api.add_task.call_args.kwargs["project_id"] == "p_odak"
+
+
+@pytest.mark.parametrize("alias", ["Inbox", "GELEN KUTUSU", "GelenKutusu", "Gelen Kutusu"])
+@patch("plugvan.todoist.client.get_api_client")
+def test_create_task_inbox_aliases_use_listed_inbox(mock_get_client, alias):
+    mock_api = _api(projects=[MockProject("inbox_1", "Inbox", is_inbox=True), MockProject("p2", "Inbox Zero")])
+    mock_get_client.return_value = mock_api
+
+    result = create_task(content="X", project_name=alias)
+
+    assert "✅ Görev başarıyla oluşturuldu!" in result
+    assert "• Proje: Inbox" in result
+    assert mock_api.add_task.call_args.kwargs["project_id"] == "inbox_1"
+
+
+@patch("plugvan.todoist.client.get_api_client")
+def test_create_task_inbox_alias_without_listed_inbox_omits_project_id(mock_get_client):
+    mock_api = _api(projects=[MockProject("p2", "Inbox Zero")])
+    mock_get_client.return_value = mock_api
+
+    result = create_task(content="X", project_name="Inbox")
+
+    assert "• Proje: Gelen Kutusu" in result
+    assert mock_api.add_task.call_args.kwargs["project_id"] is None
+
+
+@patch("plugvan.todoist.client.get_api_client")
+def test_create_task_section_is_searched_only_in_resolved_project(mock_get_client):
+    mock_api = _api(
+        projects=[MockProject("p1", "Yazılım"), MockProject("p2", "Ev")],
+        sections=[MockSection("sec_1", "Backlog", project_id="p1"), MockSection("sec_2", "Backlog", project_id="p2")],
+    )
+    mock_get_client.return_value = mock_api
+
+    result = create_task(content="X", project_name="Ev", section_name_or_id="Backlog")
+
+    assert "• Bölüm: Backlog (ID: sec_2)" in result
+    mock_api.get_sections.assert_called_once_with(project_id="p2")
+    assert mock_api.add_task.call_args.kwargs["section_id"] == "sec_2"
+
+
+@patch("plugvan.todoist.client.get_api_client")
+def test_create_task_partial_section_name_is_not_found(mock_get_client):
+    mock_api = _api(
+        projects=[MockProject("p1", "Yazılım")],
+        sections=[MockSection("sec_1", "Backlog", project_id="p1")],
+    )
+    mock_get_client.return_value = mock_api
+
+    result = create_task(content="X", project_name="Yazılım", section_name_or_id="Back")
+
+    assert result == "⚠️ Belirtilen bölüm bulunamadı: 'Back'."
+    assert write_call_count(mock_api) == 0
+
+
+@patch("plugvan.todoist.client.get_api_client")
+def test_create_task_ambiguous_section_creates_nothing(mock_get_client):
+    mock_api = _api(
+        projects=[MockProject("p1", "Yazılım")],
+        sections=[MockSection("sec_1", "Backlog", project_id="p1"), MockSection("sec_2", "backlog", project_id="p1")],
+    )
+    mock_get_client.return_value = mock_api
+
+    result = create_task(content="X", project_name="Yazılım", section_name_or_id="Backlog")
+
+    assert result.startswith("⚠️ 'Backlog' için birden fazla bölüm bulundu; lütfen bölüm ID'sini kullanın:")
+    assert write_call_count(mock_api) == 0
+
+
+@patch("plugvan.todoist.client.get_api_client")
+def test_create_task_default_project_scopes_section_to_inbox(mock_get_client):
+    mock_api = _api(
+        projects=[MockProject("inbox_1", "Inbox", is_inbox=True), MockProject("p2", "Ev")],
+        sections=[MockSection("sec_in", "Backlog", project_id="inbox_1"), MockSection("sec_ev", "Backlog", project_id="p2")],
+    )
+    mock_get_client.return_value = mock_api
+
+    result = create_task(content="X", section_name_or_id="Backlog")
+
+    assert "• Bölüm: Backlog (ID: sec_in)" in result
+    assert mock_api.add_task.call_args.kwargs["project_id"] == "inbox_1"
+    assert mock_api.add_task.call_args.kwargs["section_id"] == "sec_in"
+
+
+@patch("plugvan.todoist.client.get_api_client")
+def test_create_task_default_project_without_listed_inbox_section_not_found(mock_get_client):
+    mock_api = _api(
+        projects=[MockProject("p2", "Ev")],
+        sections=[MockSection("sec_ev", "Backlog", project_id="p2")],
+    )
+    mock_get_client.return_value = mock_api
+
+    result = create_task(content="X", section_name_or_id="Backlog")
+
+    assert result == "⚠️ Belirtilen bölüm bulunamadı: 'Backlog'."
+    mock_api.get_sections.assert_not_called()
+    assert write_call_count(mock_api) == 0
+
+
+@patch("plugvan.todoist.client.get_api_client")
+def test_create_task_lookup_failures_are_generic_and_sanitized(mock_get_client, caplog):
+    mock_api = _api(projects=[MockProject("p1", "Yazılım")])
+    mock_get_client.return_value = mock_api
+
+    mock_api.get_projects.side_effect = _make_http_status_error(500, "upstream secret body")
+    with caplog.at_level(logging.ERROR, logger="todoist_mcp"):
+        project_failed = create_task(content="X", project_name="Yazılım")
+
+    mock_api.get_projects.side_effect = None
+    mock_api.get_sections.side_effect = RuntimeError("section list secret")
+    with caplog.at_level(logging.ERROR, logger="todoist_mcp"):
+        section_failed = create_task(content="X", project_name="Yazılım", section_name_or_id="Backlog")
+
+    generic = "❌ Todoist task creation failed. Check server logs for details."
+    assert project_failed == generic
+    assert section_failed == generic
+    assert write_call_count(mock_api) == 0
+    for text in (project_failed, section_failed, caplog.text):
+        assert "upstream secret body" not in text
+        assert "500 error" not in text
+        assert "section list secret" not in text
+    assert "error_type=HTTPStatusError" in caplog.text
+    assert "error_type=RuntimeError" in caplog.text
+
+
+@patch("plugvan.todoist.client.get_api_client")
+def test_update_task_ambiguous_project_writes_nothing(mock_get_client):
+    mock_api = _api(projects=[MockProject("p1", "Proje A"), MockProject("p2", "Proje B")])
+    mock_get_client.return_value = mock_api
+
+    result = update_task(task_id="task_1", content="x", project_name="Proje")
+
+    assert result.startswith("⚠️ 'Proje' için birden fazla proje bulundu; lütfen proje ID'sini kullanın:")
+    assert write_call_count(mock_api) == 0
+
+
+@patch("plugvan.todoist.client.get_api_client")
+def test_update_task_unique_partial_project_shows_resolved_name(mock_get_client):
+    mock_api = _api(projects=[MockProject("p_odak", "Odak & Gelişim")])
+    mock_get_client.return_value = mock_api
+
+    result = update_task(task_id="task_1", project_name="odak")
+
+    assert "Hedef Proje: 'Odak & Gelişim' (ID: p_odak)" in result
+    mock_api.move_task.assert_called_once_with(task_id="task_1", project_id="p_odak")
+
+
+@patch("plugvan.todoist.client.get_api_client")
+def test_update_task_section_without_project_is_scoped_to_current_project(mock_get_client):
+    mock_api = _api(
+        sections=[MockSection("sec_1", "Backlog", project_id="p1"), MockSection("sec_2", "Backlog", project_id="p2")],
+    )
+    mock_api.get_task.return_value = MagicMock(project_id="p2")
+    mock_get_client.return_value = mock_api
+
+    result = update_task(task_id="task_1", section_name_or_id="Backlog")
+
+    assert "Hedef Bölüm: 'Backlog' (ID: sec_2)" in result
+    mock_api.get_task.assert_called_once_with(task_id="task_1")
+    mock_api.get_sections.assert_called_once_with(project_id="p2")
+    mock_api.move_task.assert_called_once_with(task_id="task_1", section_id="sec_2")
+
+
+@patch("plugvan.todoist.client.get_api_client")
+def test_update_task_section_not_found_writes_nothing(mock_get_client):
+    mock_api = _api(
+        projects=[MockProject("p1", "Yazılım")],
+        sections=[MockSection("sec_1", "Backlog", project_id="p1")],
+    )
+    mock_get_client.return_value = mock_api
+
+    result = update_task(task_id="task_1", content="x", project_name="Yazılım", section_name_or_id="Back")
+
+    assert result == "⚠️ Hedef bölüm bulunamadı: 'Back'."
+    assert write_call_count(mock_api) == 0
+
+
+@patch("plugvan.todoist.client.get_api_client")
+def test_update_task_inbox_alias_without_listed_inbox_writes_nothing(mock_get_client):
+    """Moving needs a project ID; with no Inbox listed there is none, so nothing is written."""
+    mock_api = _api(projects=[MockProject("p1", "Yazılım")])
+    mock_get_client.return_value = mock_api
+
+    result = update_task(task_id="task_1", content="x", project_name="Inbox")
+
+    assert result == "⚠️ Hedef proje bulunamadı: 'Inbox'."
+    assert write_call_count(mock_api) == 0
+
+
+@patch("plugvan.todoist.client.get_api_client")
+def test_update_task_lookup_failures_are_generic_and_sanitized(mock_get_client, caplog):
+    mock_api = _api(projects=[MockProject("p1", "Yazılım")])
+    mock_get_client.return_value = mock_api
+    generic = "❌ Failed to update task in Todoist (ID: task_1). Check server logs for details."
+
+    mock_api.get_projects.side_effect = _make_http_status_error(503, "upstream secret body")
+    with caplog.at_level(logging.ERROR, logger="todoist_mcp"):
+        project_failed = update_task(task_id="task_1", content="x", project_name="Yazılım")
+
+    mock_api.get_projects.side_effect = None
+    mock_api.get_task.side_effect = RuntimeError("current task secret")
+    with caplog.at_level(logging.ERROR, logger="todoist_mcp"):
+        current_failed = update_task(task_id="task_1", content="x", section_name_or_id="Backlog")
+
+    assert project_failed == generic
+    assert current_failed == generic
+    assert write_call_count(mock_api) == 0
+    for text in (project_failed, current_failed, caplog.text):
+        assert "upstream secret body" not in text
+        assert "503 error" not in text
+        assert "current task secret" not in text
+    assert "error_type=HTTPStatusError" in caplog.text
+    assert "error_type=RuntimeError" in caplog.text
+
+
+@patch("plugvan.todoist.client.get_api_client")
+def test_update_task_current_project_http_error_logs_error_type_only(mock_get_client, caplog):
+    """The get_task lookup used to scope a section is a resolution step, so an HTTP error there
+    must not reach the server log as a status code or response body."""
+    mock_api = _api()
+    mock_api.get_task.side_effect = _make_http_status_error(502, "upstream secret body")
+    mock_get_client.return_value = mock_api
+
+    with caplog.at_level(logging.DEBUG, logger="todoist_mcp"):
+        result = update_task(task_id="task_1", content="x", section_name_or_id="Backlog")
+
+    assert result == "❌ Failed to update task in Todoist (ID: task_1). Check server logs for details."
+    assert write_call_count(mock_api) == 0
+    assert "upstream secret body" not in caplog.text
+    assert "status=502" not in caplog.text
+    assert "502" not in caplog.text
+    assert "error_type=HTTPStatusError" in caplog.text
