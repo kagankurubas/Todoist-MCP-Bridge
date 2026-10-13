@@ -1,4 +1,4 @@
-# Todoist MCP Bridge 🌉
+# Plugvan
 
 <p align="center">
   <img src="https://img.shields.io/badge/Python-3.10%2B-blue?logo=python&logoColor=white" alt="Python Version" />
@@ -12,7 +12,11 @@
 </p>
 
 <p align="center">
-  <strong>A local Model Context Protocol (MCP) server that lets AI assistants like Claude Desktop manage Todoist over STDIO, with smart project routing, natural language due dates, and strict validation. Optional CLI, webhook, and Google Tasks sync tools share the same core.</strong>
+  <strong>Plugvan: hand-written and validated MCP integrations for the apps you use, starting with Todoist. It is a standalone server, not a gateway or proxy for other MCP servers.</strong>
+</p>
+
+<p align="center">
+  <strong>Todoist integration:</strong> A local Model Context Protocol (MCP) server that lets AI assistants like Claude Desktop manage Todoist over STDIO, with smart project routing, natural language due dates, and strict validation.
 </p>
 
 <p align="center">
@@ -78,7 +82,7 @@ flowchart TD
 <a name="english"></a>
 ## 🇬🇧 English
 
-Todoist MCP Bridge is primarily a local **Model Context Protocol (MCP)** server: Claude Desktop launches it as a subprocess and talks to it over STDIO, so no web server or deployment is needed. It lets an AI assistant manage Todoist through conversation using smart project resolution, natural language due dates, and strict schema validation. The repository also includes optional tools that share the same validation core: a standalone CLI, a FastAPI webhook service for local automations (n8n, Make), and a Google Tasks sync worker.
+Plugvan is primarily a local **Model Context Protocol (MCP)** server: Claude Desktop launches it as a subprocess and talks to it over STDIO, so no web server or deployment is needed. It lets an AI assistant manage Todoist through conversation using smart project resolution, natural language due dates, and strict schema validation. The repository also includes optional tools that share the same validation core: a standalone CLI, a FastAPI webhook service for local automations (n8n, Make), and a Google Tasks sync worker.
 
 ### 🌟 Key Features
 
@@ -275,7 +279,7 @@ python send_to_bridge.py --file tasks_sample.json
 <a name="türkçe"></a>
 ## 🇹🇷 Türkçe
 
-Todoist MCP Bridge, temelde yerel çalışan bir **Model Context Protocol (MCP)** sunucusudur: Claude Desktop onu alt süreç olarak başlatır ve STDIO üzerinden konuşur; web sunucusu veya deploy gerekmez. Yapay zeka asistanının Todoist'i sohbet üzerinden yönetmesini sağlar. Repoda ayrıca aynı doğrulama çekirdeğini kullanan isteğe bağlı araçlar bulunur: bağımsız CLI, yerel otomasyonlar (n8n, Make) için FastAPI webhook servisi ve Google Tasks senkronizasyon servisi.
+Plugvan, temelde yerel çalışan bir **Model Context Protocol (MCP)** sunucusudur: Claude Desktop onu alt süreç olarak başlatır ve STDIO üzerinden konuşur; web sunucusu veya deploy gerekmez. Yapay zeka asistanının Todoist'i sohbet üzerinden yönetmesini sağlar. Repoda ayrıca aynı doğrulama çekirdeğini kullanan isteğe bağlı araçlar bulunur: bağımsız CLI, yerel otomasyonlar (n8n, Make) için FastAPI webhook servisi ve Google Tasks senkronizasyon servisi.
 
 ### 🌟 Öne Çıkan Özellikler
 
