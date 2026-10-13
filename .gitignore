@@ -39,3 +39,5 @@ htmlcov/
 *.swo
 .DS_Store
 Thumbs.db
+# Claude Code kişisel ayarları
+.claude/settings.local.json

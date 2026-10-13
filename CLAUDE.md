@@ -76,3 +76,17 @@ Repodaki en büyük dosya (~1400 satır); her Todoist işlemi (görevler, bölü
 ### Testler
 
 `tests/` modül yapısını birebir yansıtır (`test_mcp.py`, `test_api.py`, `test_models.py`, `test_parser.py`, `test_todoist_client.py`, `test_project_resolution.py`) ve tüm ağ/API çağrılarını mock'lar — gerçek bir Todoist veya Google çağrısı yapılmaz. `test_mcp.py`, SDK client'ını topyekûn mock'lamak yerine SDK'nın obje özniteliklerini yansıtan hafif `MockProject`/`MockLabel`/`MockSection` sınıfları tanımlar.
+
+## Agent skills
+
+### Issue tracker
+
+Issue'lar GitHub Issues'ta (`kagankurubas/Todoist-MCP-Bridge`) tutulur, `gh` CLI ile yönetilir. Bkz. `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Varsayılan beş etiket kullanılır: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. Bkz. `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context düzen: repo kökünde tek bir `CONTEXT.md` + `docs/adr/`. Bkz. `docs/agents/domain.md`.
