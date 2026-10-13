@@ -14,6 +14,8 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Runner images are pinned (no -latest) so image upgrades are deliberate; the next move,
+# to ubuntu-26.04, gets its own PR.
 jobs:
   tests:
     name: pytest (${{ matrix.os }}, Python ${{ matrix.python-version }})
@@ -22,10 +24,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest]
+        os: [ubuntu-24.04]
         python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
         include:
-          - os: windows-latest
+          - os: windows-2025
             python-version: "3.14"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -50,7 +52,7 @@ jobs:
   surface-fixture:
     name: Tool surface fixture unchanged
     if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
