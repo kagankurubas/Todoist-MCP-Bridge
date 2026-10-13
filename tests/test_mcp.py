@@ -42,6 +42,7 @@ from todoist_mcp import (
     reopen_task,
     update_label,
     update_project,
+    update_section,
     update_task,
 )
 
@@ -1355,7 +1356,7 @@ def test_delete_label_not_found(mock_get_client):
 
 
 # =====================================================================
-# SECTIONS (CREATE_SECTION, LIST_SECTIONS, DELETE_SECTION) TESTS
+# SECTIONS (CREATE_SECTION, LIST_SECTIONS, UPDATE_SECTION, DELETE_SECTION) TESTS
 # =====================================================================
 
 @patch("todoist_mcp._get_api_client")
@@ -1408,6 +1409,92 @@ def test_list_sections_empty(mock_get_client):
 
     result = list_sections()
     assert "ℹ️ Todoist hesabınızda herhangi bir bölüm bulunamadı." in result
+
+
+@patch("todoist_mcp._get_api_client")
+def test_update_section_rename_by_name(mock_get_client):
+    mock_api = MagicMock()
+    mock_get_client.return_value = mock_api
+    mock_api.get_sections.return_value = [[MockSection("sec_7", "Backlog", project_id="proj_10")]]
+
+    result = update_section(section_name_or_id="Backlog", name="Yapılacaklar")
+    assert "✅ Bölüm başarıyla güncellendi (ID: sec_7)!" in result
+    assert "Eski isim: 'Backlog'" in result
+    assert "Yeni isim: 'Yapılacaklar'" in result
+    mock_api.update_section.assert_called_once_with(section_id="sec_7", name="Yapılacaklar")
+
+
+@patch("todoist_mcp._get_api_client")
+def test_update_section_rename_by_id(mock_get_client):
+    mock_api = MagicMock()
+    mock_get_client.return_value = mock_api
+    mock_api.get_sections.return_value = [[MockSection("sec_8", "Done", project_id="proj_10")]]
+
+    result = update_section(section_name_or_id="sec_8", name="Bitti")
+    assert "✅ Bölüm başarıyla güncellendi (ID: sec_8)!" in result
+    mock_api.update_section.assert_called_once_with(section_id="sec_8", name="Bitti")
+
+
+@patch("todoist_mcp._get_api_client")
+def test_update_section_scoped_to_project(mock_get_client):
+    mock_api = MagicMock()
+    mock_get_client.return_value = mock_api
+    mock_api.get_projects.return_value = [[MockProject("proj_10", "Yazılım")]]
+    mock_api.get_sections.return_value = [[MockSection("sec_9", "Backlog", project_id="proj_10")]]
+
+    result = update_section(section_name_or_id="Backlog", name="Icebox", project_name_or_id="Yazılım")
+    assert "✅ Bölüm başarıyla güncellendi" in result
+    mock_api.get_sections.assert_called_once_with(project_id="proj_10")
+    mock_api.update_section.assert_called_once_with(section_id="sec_9", name="Icebox")
+
+
+@patch("todoist_mcp._get_api_client")
+def test_update_section_project_not_found(mock_get_client):
+    mock_api = MagicMock()
+    mock_get_client.return_value = mock_api
+    mock_api.get_projects.return_value = [[]]
+
+    result = update_section(section_name_or_id="Backlog", name="Icebox", project_name_or_id="Olmayan Proje")
+    assert "⚠️ Belirtilen proje bulunamadı: 'Olmayan Proje'." in result
+    mock_api.update_section.assert_not_called()
+
+
+@patch("todoist_mcp._get_api_client")
+def test_update_section_not_found(mock_get_client):
+    mock_api = MagicMock()
+    mock_get_client.return_value = mock_api
+    mock_api.get_sections.return_value = [[]]
+
+    result = update_section(section_name_or_id="Olmayan Bölüm", name="Yeni")
+    assert "⚠️ Güncellenecek bölüm bulunamadı: 'Olmayan Bölüm'." in result
+    mock_api.update_section.assert_not_called()
+
+
+def test_update_section_empty_new_name():
+    result = update_section(section_name_or_id="Backlog", name="   ")
+    assert "❌ Invalid input: New section name cannot be empty" in result
+
+
+def test_update_section_empty_identifier():
+    result = update_section(section_name_or_id="   ", name="Yeni")
+    assert "❌ Invalid input: Section identifier cannot be empty" in result
+
+
+def test_update_section_name_too_long():
+    result = update_section(section_name_or_id="Backlog", name="x" * (MAX_SECTION_NAME_LENGTH + 1))
+    assert "New section name exceeds maximum length" in result
+
+
+@patch("todoist_mcp._get_api_client")
+def test_update_section_sanitizes_exception(mock_get_client):
+    mock_api = MagicMock()
+    mock_get_client.return_value = mock_api
+    mock_api.get_sections.return_value = [[MockSection("sec_1", "Backlog")]]
+    mock_api.update_section.side_effect = Exception("TODOIST_API_TOKEN=SECRET")
+
+    result = update_section(section_name_or_id="Backlog", name="Yeni")
+    assert "❌ Failed to update section 'Backlog' in Todoist." in result
+    assert "SECRET" not in result
 
 
 @patch("todoist_mcp._get_api_client")

@@ -1544,6 +1544,86 @@ def list_sections(
 
 
 @mcp.tool()
+def update_section(
+    section_name_or_id: Annotated[
+        str,
+        Field(
+            min_length=1,
+            max_length=MAX_SECTION_NAME_LENGTH,
+            description="The Todoist Section ID or current Section Name to rename (required).",
+        ),
+    ],
+    name: Annotated[
+        str,
+        Field(
+            min_length=1,
+            max_length=MAX_SECTION_NAME_LENGTH,
+            description="The new name for the section (required).",
+        ),
+    ],
+    project_name_or_id: Annotated[
+        Optional[str],
+        Field(
+            default=None,
+            max_length=MAX_PROJECT_NAME_LENGTH,
+            description="Optional project name or ID to disambiguate when several projects have a section with the same name.",
+        ),
+    ] = None,
+) -> str:
+    """Renames an existing section (column / Kanban list) in Todoist.
+
+    Args:
+        section_name_or_id: ID or current name of the section to rename.
+        name: New section name (must not be empty, max 120 chars).
+        project_name_or_id: Optional project scope used to resolve the section by name.
+    """
+    clean_identifier = str(section_name_or_id).strip() if section_name_or_id is not None else ""
+    if not clean_identifier:
+        return "❌ Invalid input: Section identifier cannot be empty or whitespace."
+    if len(clean_identifier) > MAX_SECTION_NAME_LENGTH:
+        return f"❌ Invalid input: Section identifier exceeds maximum length of {MAX_SECTION_NAME_LENGTH} characters."
+
+    clean_name = name.strip() if isinstance(name, str) else ""
+    if not clean_name:
+        return "❌ Invalid input: New section name cannot be empty or whitespace."
+    if len(clean_name) > MAX_SECTION_NAME_LENGTH:
+        return f"❌ Invalid input: New section name exceeds maximum length of {MAX_SECTION_NAME_LENGTH} characters."
+
+    clean_project = project_name_or_id.strip() if isinstance(project_name_or_id, str) else None
+    if clean_project and len(clean_project) > MAX_PROJECT_NAME_LENGTH:
+        return f"❌ Invalid input: Project identifier exceeds maximum length of {MAX_PROJECT_NAME_LENGTH} characters."
+
+    try:
+        api = _get_api_client()
+
+        project_id = None
+        if clean_project:
+            project_id, _ = _resolve_project(api, clean_project)
+            if not project_id:
+                return f"⚠️ Belirtilen proje bulunamadı: '{clean_project}'."
+
+        section_id, old_name = _resolve_section(api, clean_identifier, project_id=project_id)
+        if not section_id:
+            return f"⚠️ Güncellenecek bölüm bulunamadı: '{clean_identifier}'."
+
+        api.update_section(section_id=section_id, name=clean_name)
+
+        return (
+            f"✅ Bölüm başarıyla güncellendi (ID: {section_id})!\n"
+            f"• Eski isim: '{old_name}'\n"
+            f"• Yeni isim: '{clean_name}'"
+        )
+    except Exception as e:
+        logger.error(
+            "Failed to update section in Todoist (identifier=%s, error_type=%s)",
+            clean_identifier,
+            type(e).__name__,
+            exc_info=False,
+        )
+        return f"❌ Failed to update section '{clean_identifier}' in Todoist. Check server logs for details."
+
+
+@mcp.tool()
 def delete_section(
     section_name_or_id: Annotated[
         str,
