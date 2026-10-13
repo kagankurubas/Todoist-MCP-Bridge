@@ -7,7 +7,7 @@
   <img src="https://img.shields.io/badge/Pydantic-v2-e92063?logo=pydantic&logoColor=white" alt="Pydantic" />
   <img src="https://img.shields.io/badge/Todoist_API-v1-e44332?logo=todoist&logoColor=white" alt="Todoist API" />
   <img src="https://img.shields.io/badge/Google_Tasks-OAuth_2.0-4285F4?logo=google&logoColor=white" alt="Google Tasks API" />
-  <img src="https://img.shields.io/badge/Tests-181%20Passed-brightgreen?logo=pytest&logoColor=white" alt="Pytest" />
+  <img src="https://img.shields.io/badge/Tests-183%20Passed-brightgreen?logo=pytest&logoColor=white" alt="Pytest" />
   <img src="https://img.shields.io/badge/License-MIT-green" alt="License" />
 </p>
 
@@ -44,7 +44,7 @@ flowchart TD
     end
 
     subgraph Gateways["🚀 Gateways & Interfaces"]
-        C1["🤖 FastMCP Server (todoist_mcp.py)\n[Task/Project Get/Create/Update/Delete, Section, Label, Comment Tools]"]
+        C1["🤖 FastMCP Server (plugvan.todoist)\n[Task/Project Get/Create/Update/Delete, Section, Label, Comment Tools]"]
         C2["⚡ FastAPI Server (app.py)\n[Timing-Safe X-Bridge-Token Auth]"]
         C3["🔄 Sync Worker (sync_worker.py)\n[OAuth 2.0 Auto-Delete]"]
         C4["🖥️ Standalone CLI (main.py / send_to_bridge.py)"]
@@ -82,7 +82,7 @@ Todoist MCP Bridge is primarily a local **Model Context Protocol (MCP)** server:
 
 ### 🌟 Key Features
 
-- **🤖 Model Context Protocol (MCP) Server (`todoist_mcp.py`):** FastMCP server over STDIO for Claude Desktop with full suite of Todoist management tools:
+- **🤖 Model Context Protocol (MCP) Server (`plugvan.todoist`):** FastMCP server over STDIO for Claude Desktop with full suite of Todoist management tools:
   - **Tasks:** `create_task` (subtasks via `parent_id`, deadlines via `deadline_date`), `get_task`, `list_tasks`, `complete_task`, `reopen_task`, `update_task` (move/reparent, deadline updates), `delete_task`
   - **Sections / Kanban:** `create_section`, `list_sections`, `update_section`, `delete_section`
   - **Labels:** `list_labels`, `create_label`, `update_label`, `delete_label`
@@ -100,7 +100,7 @@ Todoist MCP Bridge is primarily a local **Model Context Protocol (MCP)** server:
 
 ```text
 Todoist-MCP-Bridge/
-├── todoist_mcp.py          # FastMCP server for Claude Desktop (STDIO)
+├── plugvan/todoist/        # FastMCP server for Claude Desktop (STDIO, python -m plugvan.todoist)
 ├── app.py                  # FastAPI Web Application & REST API
 ├── send_to_bridge.py       # Standalone CLI client for FastAPI webhook
 ├── sync_worker.py          # Google Tasks → Todoist sync worker (OAuth 2.0)
@@ -111,7 +111,7 @@ Todoist-MCP-Bridge/
 ├── main.py                 # Direct Todoist CLI runner & table formatter
 ├── gemini_tool_schema.json # Gemini Function Calling / Tool Schema
 ├── tasks_sample.json       # Sample task template
-├── tests/                  # Pytest test suite (181 unit & integration tests)
+├── tests/                  # Pytest test suite (183 unit & integration tests)
 ├── Dockerfile              # Docker container (runs sync_worker.py by default)
 ├── .dockerignore           # Excluded files for Docker build context
 ├── requirements.txt        # Python dependencies
@@ -173,16 +173,15 @@ WEBHOOK_SECRET_TOKEN=your_strong_random_secret_token_here
 Integrate Todoist directly into your Claude Desktop application.
 
 1. Open `%APPDATA%\Claude\claude_desktop_config.json` (or **Settings ➔ Developer ➔ Edit Config** in Claude Desktop).
-2. Add the `todoist` server configuration (replace path with your project path):
+2. Add the `todoist` server configuration (replace `<REPO_PATH>` with your project path):
 ```json
 {
   "mcpServers": {
     "todoist": {
-      "command": "D:\\Todoist-MCP-Bridge\\venv\\Scripts\\python.exe",
-      "args": [
-        "D:\\Todoist-MCP-Bridge\\todoist_mcp.py"
-      ],
+      "command": "<REPO_PATH>\\venv\\Scripts\\python.exe",
+      "args": ["-m", "plugvan.todoist"],
       "env": {
+        "PYTHONPATH": "<REPO_PATH>",
         "PYTHONIOENCODING": "utf-8"
       }
     }
@@ -280,7 +279,7 @@ Todoist MCP Bridge, temelde yerel çalışan bir **Model Context Protocol (MCP)*
 
 ### 🌟 Öne Çıkan Özellikler
 
-- **🤖 Model Context Protocol (MCP) Sunucusu (`todoist_mcp.py`):** Claude Desktop için FastMCP mimarisiyle yerel STDIO üzerinden çalışan kapsamlı Todoist yönetim araç seti:
+- **🤖 Model Context Protocol (MCP) Sunucusu (`plugvan.todoist`):** Claude Desktop için FastMCP mimarisiyle yerel STDIO üzerinden çalışan kapsamlı Todoist yönetim araç seti:
   - **Görev Yönetimi:** `create_task` (parent_id ile alt görev, deadline_date ile son teslim tarihi), `get_task`, `list_tasks`, `complete_task`, `reopen_task`, `update_task` (proje/bölüm/üst görev taşıma, deadline güncelleme), `delete_task`
   - **Bölüm / Kanban Listeleri:** `create_section`, `list_sections`, `update_section`, `delete_section`
   - **Etiketler:** `list_labels`, `create_label`, `update_label`, `delete_label`
@@ -297,7 +296,7 @@ Todoist MCP Bridge, temelde yerel çalışan bir **Model Context Protocol (MCP)*
 
 ```text
 Todoist-MCP-Bridge/
-├── todoist_mcp.py          # Claude Desktop için FastMCP sunucusu (STDIO)
+├── plugvan/todoist/        # Claude Desktop için FastMCP sunucusu (STDIO, python -m plugvan.todoist)
 ├── app.py                  # FastAPI Web Uygulaması ve REST API
 ├── send_to_bridge.py       # FastAPI webhook istemcisi (CLI)
 ├── sync_worker.py          # Google Tasks → Todoist senkronizasyon servisi
@@ -308,7 +307,7 @@ Todoist-MCP-Bridge/
 ├── main.py                 # Doğrudan Todoist CLI çalıştırıcısı ve tablo formatlayıcı
 ├── gemini_tool_schema.json # Gemini Function Calling / Tool Şeması
 ├── tasks_sample.json       # Örnek görev şablonu
-├── tests/                  # Pytest test paketi (181 birim ve entegrasyon testi)
+├── tests/                  # Pytest test paketi (183 birim ve entegrasyon testi)
 ├── Dockerfile              # Docker konteyner tanımı (varsayılan: sync_worker.py)
 ├── .dockerignore           # Docker derleme bağlamı hariç tutma listesi
 ├── requirements.txt        # Python bağımlılıkları
@@ -368,16 +367,15 @@ ALLOWED_ORIGINS=*
 Claude Desktop uygulamanıza Todoist yeteneği kazandırmak için:
 
 1. `%APPDATA%\Claude\claude_desktop_config.json` dosyasını açın (veya Claude Desktop ➔ **Settings ➔ Developer ➔ Edit Config**).
-2. Aşağıdaki yapılandırmayı ekleyin (dosya yollarını kendi sisteminize göre düzenleyin):
+2. Aşağıdaki yapılandırmayı ekleyin (`<REPO_PATH>` yerine kendi proje yolunuzu yazın):
 ```json
 {
   "mcpServers": {
     "todoist": {
-      "command": "D:\\Todoist-MCP-Bridge\\venv\\Scripts\\python.exe",
-      "args": [
-        "D:\\Todoist-MCP-Bridge\\todoist_mcp.py"
-      ],
+      "command": "<REPO_PATH>\\venv\\Scripts\\python.exe",
+      "args": ["-m", "plugvan.todoist"],
       "env": {
+        "PYTHONPATH": "<REPO_PATH>",
         "PYTHONIOENCODING": "utf-8"
       }
     }
@@ -468,7 +466,7 @@ python send_to_bridge.py --file tasks_sample.json
 <a name="tests"></a>
 ## 🧪 Testing / Testleri Çalıştırma
 
-Projede 181 adet birim ve entegrasyon testi yer almaktadır:
+Projede 183 adet birim ve entegrasyon testi yer almaktadır:
 
 ```bash
 # Tüm testleri çalıştırmak için:

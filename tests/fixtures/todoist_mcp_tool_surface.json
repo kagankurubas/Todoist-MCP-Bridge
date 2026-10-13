@@ -1,0 +1,1065 @@
+[
+  {
+    "name": "add_comment",
+    "description": "Adds a comment or note to an existing Todoist task.\n\nArgs:\n    task_id: ID of the task to attach the comment to.\n    content: Comment text or markdown notes (max 4096 chars).\n",
+    "inputSchema": {
+      "properties": {
+        "task_id": {
+          "description": "The Todoist Task ID to attach the comment to (required).",
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Task Id",
+          "type": "string"
+        },
+        "content": {
+          "description": "The text content or markdown note of the comment (required).",
+          "maxLength": 4096,
+          "minLength": 1,
+          "title": "Content",
+          "type": "string"
+        }
+      },
+      "required": [
+        "task_id",
+        "content"
+      ],
+      "title": "add_commentArguments",
+      "type": "object"
+    },
+    "outputSchema": {
+      "properties": {
+        "result": {
+          "title": "Result",
+          "type": "string"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "title": "add_commentOutput",
+      "type": "object"
+    }
+  },
+  {
+    "name": "complete_task",
+    "description": "Marks an existing Todoist task as completed.\n\nArgs:\n    task_id: The ID of the Todoist task to mark as completed (max 100 chars).\n",
+    "inputSchema": {
+      "properties": {
+        "task_id": {
+          "description": "The Todoist Task ID to complete (required).",
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Task Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "task_id"
+      ],
+      "title": "complete_taskArguments",
+      "type": "object"
+    },
+    "outputSchema": {
+      "properties": {
+        "result": {
+          "title": "Result",
+          "type": "string"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "title": "complete_taskOutput",
+      "type": "object"
+    }
+  },
+  {
+    "name": "create_label",
+    "description": "Creates a new label in Todoist.\n\nArgs:\n    name: Name of the label (must not be empty, max 60 chars).\n    color: Optional color name (e.g. 'berry_red', 'sky_blue', 'mint_green').\n",
+    "inputSchema": {
+      "properties": {
+        "name": {
+          "description": "The name of the new label (required, e.g. 'work', 'focus').",
+          "maxLength": 60,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "color": {
+          "anyOf": [
+            {
+              "maxLength": 50,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Color name for the label icon (e.g. 'berry_red', 'mint_green', 'teal', optional).",
+          "title": "Color"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "create_labelArguments",
+      "type": "object"
+    },
+    "outputSchema": {
+      "properties": {
+        "result": {
+          "title": "Result",
+          "type": "string"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "title": "create_labelOutput",
+      "type": "object"
+    }
+  },
+  {
+    "name": "create_project",
+    "description": "Creates a new project or subproject in Todoist.\n\nArgs:\n    name: Name of the project (must not be empty, max 120 chars).\n    parent_project_name_or_id: Optional parent project name or ID to create as a nested subproject.\n    color: Optional color name (e.g. 'berry_red', 'sky_blue', 'mint_green').\n",
+    "inputSchema": {
+      "properties": {
+        "name": {
+          "description": "The name of the new project (required).",
+          "maxLength": 120,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "parent_project_name_or_id": {
+          "anyOf": [
+            {
+              "maxLength": 120,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Parent project name or ID to create this project as a nested subproject (optional).",
+          "title": "Parent Project Name Or Id"
+        },
+        "color": {
+          "anyOf": [
+            {
+              "maxLength": 50,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Color name for the project icon (e.g. 'berry_red', 'charcoal', 'teal', optional).",
+          "title": "Color"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "create_projectArguments",
+      "type": "object"
+    },
+    "outputSchema": {
+      "properties": {
+        "result": {
+          "title": "Result",
+          "type": "string"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "title": "create_projectOutput",
+      "type": "object"
+    }
+  },
+  {
+    "name": "create_section",
+    "description": "Creates a new section (column / Kanban list) in a Todoist project.\n\nArgs:\n    name: Name of the section (must not be empty, max 120 chars).\n    project_name_or_id: Target project name or ID.\n",
+    "inputSchema": {
+      "properties": {
+        "name": {
+          "description": "The name of the new section/column (required, e.g. 'In Progress', 'Done').",
+          "maxLength": 120,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "project_name_or_id": {
+          "description": "The name or ID of the parent project where the section will be created (required).",
+          "maxLength": 120,
+          "minLength": 1,
+          "title": "Project Name Or Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "project_name_or_id"
+      ],
+      "title": "create_sectionArguments",
+      "type": "object"
+    },
+    "outputSchema": {
+      "properties": {
+        "result": {
+          "title": "Result",
+          "type": "string"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "title": "create_sectionOutput",
+      "type": "object"
+    }
+  },
+  {
+    "name": "create_task",
+    "description": "Creates a new task in Todoist with smart project, section, label, and due date resolution.\n\nArgs:\n    content: Task title/content (must not be empty, max 500 chars).\n    description: Task notes or description (max 4096 chars).\n    project_name: Target project name (max 120 chars, defaults to 'Gelen Kutusu').\n    due_string: Natural language date string (e.g. 'tomorrow at 14:00', max 150 chars).\n    priority: Priority integer strictly between 1 (normal) and 4 (urgent).\n    labels: Optional list of label strings to attach to the task.\n    section_name_or_id: Optional target section name or ID within the project.\n    parent_id: Optional Todoist task ID to create this task as a subtask of (max 100 chars).\n    deadline_date: Optional official deadline date (YYYY-MM-DD), distinct from due_string.\n",
+    "inputSchema": {
+      "properties": {
+        "content": {
+          "description": "The text content/title of the task (required).",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Content",
+          "type": "string"
+        },
+        "description": {
+          "default": "",
+          "description": "Detailed description or notes for the task (optional).",
+          "maxLength": 4096,
+          "title": "Description",
+          "type": "string"
+        },
+        "project_name": {
+          "default": "Gelen Kutusu",
+          "description": "Target Todoist project name (defaults to 'Gelen Kutusu' / Inbox).",
+          "maxLength": 120,
+          "title": "Project Name",
+          "type": "string"
+        },
+        "due_string": {
+          "anyOf": [
+            {
+              "maxLength": 150,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Natural language due date/time or recurring schedule (e.g. 'tomorrow at 14:00', 'every Monday').",
+          "title": "Due String"
+        },
+        "priority": {
+          "default": 1,
+          "description": "Task priority level from 1 (Normal) to 4 (Urgent).",
+          "maximum": 4,
+          "minimum": 1,
+          "title": "Priority",
+          "type": "integer"
+        },
+        "labels": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "List of label names to attach to the task (e.g. ['work', 'urgent'], optional).",
+          "title": "Labels"
+        },
+        "section_name_or_id": {
+          "anyOf": [
+            {
+              "maxLength": 120,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Target section name or ID within the project (optional).",
+          "title": "Section Name Or Id"
+        },
+        "parent_id": {
+          "anyOf": [
+            {
+              "maxLength": 100,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Bu görevi belirtilen Todoist görev ID'sinin alt görevi (subtask) yapar (opsiyonel).",
+          "title": "Parent Id"
+        },
+        "deadline_date": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional official deadline date in YYYY-MM-DD format (e.g. '2026-09-01'). This is independent from due_string: due_string controls when the task is scheduled to be worked on, while deadline_date sets Todoist's separate 'Deadline' — a hard due-by date shown distinctly in the UI (optional).",
+          "title": "Deadline Date"
+        }
+      },
+      "required": [
+        "content"
+      ],
+      "title": "create_taskArguments",
+      "type": "object"
+    },
+    "outputSchema": {
+      "properties": {
+        "result": {
+          "title": "Result",
+          "type": "string"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "title": "create_taskOutput",
+      "type": "object"
+    }
+  },
+  {
+    "name": "delete_label",
+    "description": "Deletes a label from Todoist by either its ID or label name.\n\nArgs:\n    label_name_or_id: The ID or name of the label to delete.\n",
+    "inputSchema": {
+      "properties": {
+        "label_name_or_id": {
+          "description": "The Todoist Label ID or Name to delete (required).",
+          "maxLength": 60,
+          "minLength": 1,
+          "title": "Label Name Or Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "label_name_or_id"
+      ],
+      "title": "delete_labelArguments",
+      "type": "object"
+    },
+    "outputSchema": {
+      "properties": {
+        "result": {
+          "title": "Result",
+          "type": "string"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "title": "delete_labelOutput",
+      "type": "object"
+    }
+  },
+  {
+    "name": "delete_project",
+    "description": "Deletes a project from Todoist by either its ID or project name.\n\nArgs:\n    project_name_or_id: The ID or name of the project to delete.\n",
+    "inputSchema": {
+      "properties": {
+        "project_name_or_id": {
+          "description": "The Todoist Project ID or Project Name to delete (required).",
+          "maxLength": 120,
+          "minLength": 1,
+          "title": "Project Name Or Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "project_name_or_id"
+      ],
+      "title": "delete_projectArguments",
+      "type": "object"
+    },
+    "outputSchema": {
+      "properties": {
+        "result": {
+          "title": "Result",
+          "type": "string"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "title": "delete_projectOutput",
+      "type": "object"
+    }
+  },
+  {
+    "name": "delete_section",
+    "description": "Deletes a section from Todoist by its ID or name.\n\nArgs:\n    section_name_or_id: The ID or name of the section to delete.\n",
+    "inputSchema": {
+      "properties": {
+        "section_name_or_id": {
+          "description": "The Todoist Section ID or Name to delete (required).",
+          "maxLength": 120,
+          "minLength": 1,
+          "title": "Section Name Or Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "section_name_or_id"
+      ],
+      "title": "delete_sectionArguments",
+      "type": "object"
+    },
+    "outputSchema": {
+      "properties": {
+        "result": {
+          "title": "Result",
+          "type": "string"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "title": "delete_sectionOutput",
+      "type": "object"
+    }
+  },
+  {
+    "name": "delete_task",
+    "description": "Permanently deletes a task from Todoist by ID.\n\nArgs:\n    task_id: The ID of the Todoist task to delete permanently.\n",
+    "inputSchema": {
+      "properties": {
+        "task_id": {
+          "description": "The Todoist Task ID to delete permanently (required).",
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Task Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "task_id"
+      ],
+      "title": "delete_taskArguments",
+      "type": "object"
+    },
+    "outputSchema": {
+      "properties": {
+        "result": {
+          "title": "Result",
+          "type": "string"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "title": "delete_taskOutput",
+      "type": "object"
+    }
+  },
+  {
+    "name": "get_comments",
+    "description": "Retrieves all comments and notes attached to a specific Todoist task.\n\nArgs:\n    task_id: The ID of the task whose comments will be retrieved.\n",
+    "inputSchema": {
+      "properties": {
+        "task_id": {
+          "description": "The Todoist Task ID to retrieve comments for (required).",
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Task Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "task_id"
+      ],
+      "title": "get_commentsArguments",
+      "type": "object"
+    },
+    "outputSchema": {
+      "properties": {
+        "result": {
+          "title": "Result",
+          "type": "string"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "title": "get_commentsOutput",
+      "type": "object"
+    }
+  },
+  {
+    "name": "get_project",
+    "description": "Retrieves a single Todoist project by its ID, showing all its fields (name, color, parent_id, favorite status, view style).\n\nArgs:\n    project_id: The ID of the Todoist project to retrieve (max 100 chars).\n",
+    "inputSchema": {
+      "properties": {
+        "project_id": {
+          "description": "The Todoist Project ID to retrieve (required).",
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Project Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "project_id"
+      ],
+      "title": "get_projectArguments",
+      "type": "object"
+    },
+    "outputSchema": {
+      "properties": {
+        "result": {
+          "title": "Result",
+          "type": "string"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "title": "get_projectOutput",
+      "type": "object"
+    }
+  },
+  {
+    "name": "get_task",
+    "description": "Retrieves a single Todoist task by its ID, showing all its fields (parent_id, due date, labels, description, priority, project/section IDs, etc.).\n\nArgs:\n    task_id: The ID of the Todoist task to retrieve (max 100 chars).\n",
+    "inputSchema": {
+      "properties": {
+        "task_id": {
+          "description": "The Todoist Task ID to retrieve (required).",
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Task Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "task_id"
+      ],
+      "title": "get_taskArguments",
+      "type": "object"
+    },
+    "outputSchema": {
+      "properties": {
+        "result": {
+          "title": "Result",
+          "type": "string"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "title": "get_taskOutput",
+      "type": "object"
+    }
+  },
+  {
+    "name": "list_labels",
+    "description": "Lists all user labels in Todoist with their names, IDs, and color information.",
+    "inputSchema": {
+      "properties": {},
+      "title": "list_labelsArguments",
+      "type": "object"
+    },
+    "outputSchema": {
+      "properties": {
+        "result": {
+          "title": "Result",
+          "type": "string"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "title": "list_labelsOutput",
+      "type": "object"
+    }
+  },
+  {
+    "name": "list_projects",
+    "description": "Lists all user projects in Todoist with their hierarchy (nested/subprojects), names, IDs, and details.",
+    "inputSchema": {
+      "properties": {},
+      "title": "list_projectsArguments",
+      "type": "object"
+    },
+    "outputSchema": {
+      "properties": {
+        "result": {
+          "title": "Result",
+          "type": "string"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "title": "list_projectsOutput",
+      "type": "object"
+    }
+  },
+  {
+    "name": "list_sections",
+    "description": "Lists sections (Kanban columns) in Todoist for a specific project or across all projects.",
+    "inputSchema": {
+      "properties": {
+        "project_name_or_id": {
+          "anyOf": [
+            {
+              "maxLength": 120,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional project name or ID to list sections specifically for that project.",
+          "title": "Project Name Or Id"
+        }
+      },
+      "title": "list_sectionsArguments",
+      "type": "object"
+    },
+    "outputSchema": {
+      "properties": {
+        "result": {
+          "title": "Result",
+          "type": "string"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "title": "list_sectionsOutput",
+      "type": "object"
+    }
+  },
+  {
+    "name": "list_tasks",
+    "description": "Lists open tasks in Todoist matching the specified filter query.\n\nArgs:\n    filter_query: Todoist filter query (e.g. 'today', 'p1', 'overdue', '@work', max 500 chars).\n",
+    "inputSchema": {
+      "properties": {
+        "filter_query": {
+          "default": "today",
+          "description": "Todoist filter query (e.g. 'today', 'tomorrow', 'overdue', 'p1', 'all', '@work').",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Filter Query",
+          "type": "string"
+        }
+      },
+      "title": "list_tasksArguments",
+      "type": "object"
+    },
+    "outputSchema": {
+      "properties": {
+        "result": {
+          "title": "Result",
+          "type": "string"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "title": "list_tasksOutput",
+      "type": "object"
+    }
+  },
+  {
+    "name": "reopen_task",
+    "description": "Reopens an existing completed Todoist task (makes it active again).\n\nArgs:\n    task_id: The ID of the completed Todoist task to reopen.\n",
+    "inputSchema": {
+      "properties": {
+        "task_id": {
+          "description": "The Todoist Task ID to reopen/uncomplete (required).",
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Task Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "task_id"
+      ],
+      "title": "reopen_taskArguments",
+      "type": "object"
+    },
+    "outputSchema": {
+      "properties": {
+        "result": {
+          "title": "Result",
+          "type": "string"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "title": "reopen_taskOutput",
+      "type": "object"
+    }
+  },
+  {
+    "name": "update_label",
+    "description": "Updates an existing Todoist label's name or color.\n\nArgs:\n    label_name_or_id: Name or ID of the label to update (required).\n    new_name: New name for the label.\n    color: New color name for the label.\n",
+    "inputSchema": {
+      "properties": {
+        "label_name_or_id": {
+          "description": "The Todoist Label ID or Name to update (required).",
+          "maxLength": 60,
+          "minLength": 1,
+          "title": "Label Name Or Id",
+          "type": "string"
+        },
+        "new_name": {
+          "anyOf": [
+            {
+              "maxLength": 60,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "New name for the label (optional).",
+          "title": "New Name"
+        },
+        "color": {
+          "anyOf": [
+            {
+              "maxLength": 50,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "New color name for the label (e.g. 'berry_red', 'teal', optional).",
+          "title": "Color"
+        }
+      },
+      "required": [
+        "label_name_or_id"
+      ],
+      "title": "update_labelArguments",
+      "type": "object"
+    },
+    "outputSchema": {
+      "properties": {
+        "result": {
+          "title": "Result",
+          "type": "string"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "title": "update_labelOutput",
+      "type": "object"
+    }
+  },
+  {
+    "name": "update_project",
+    "description": "Updates an existing Todoist project's name or color.\n\nNote: Todoist's API does not support changing a project's parent through this\nendpoint (there is no move/reparent operation for projects), so this tool only\nupdates name and color.\n\nArgs:\n    project_name_or_id: The ID or name of the project to update (required).\n    name: New name for the project (max 120 chars).\n    color: New color name for the project icon (e.g. 'berry_red', 'sky_blue', 'mint_green').\n",
+    "inputSchema": {
+      "properties": {
+        "project_name_or_id": {
+          "description": "The Todoist Project ID or Project Name to update (required).",
+          "maxLength": 120,
+          "minLength": 1,
+          "title": "Project Name Or Id",
+          "type": "string"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "maxLength": 120,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "New name for the project (optional).",
+          "title": "Name"
+        },
+        "color": {
+          "anyOf": [
+            {
+              "maxLength": 50,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "New color name for the project icon (e.g. 'berry_red', 'charcoal', 'teal', optional).",
+          "title": "Color"
+        }
+      },
+      "required": [
+        "project_name_or_id"
+      ],
+      "title": "update_projectArguments",
+      "type": "object"
+    },
+    "outputSchema": {
+      "properties": {
+        "result": {
+          "title": "Result",
+          "type": "string"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "title": "update_projectOutput",
+      "type": "object"
+    }
+  },
+  {
+    "name": "update_section",
+    "description": "Renames an existing section (column / Kanban list) in Todoist.\n\nArgs:\n    section_name_or_id: ID or current name of the section to rename.\n    name: New section name (must not be empty, max 120 chars).\n    project_name_or_id: Optional project scope used to resolve the section by name.\n",
+    "inputSchema": {
+      "properties": {
+        "section_name_or_id": {
+          "description": "The Todoist Section ID or current Section Name to rename (required).",
+          "maxLength": 120,
+          "minLength": 1,
+          "title": "Section Name Or Id",
+          "type": "string"
+        },
+        "name": {
+          "description": "The new name for the section (required).",
+          "maxLength": 120,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "project_name_or_id": {
+          "anyOf": [
+            {
+              "maxLength": 120,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional project name or ID to disambiguate when several projects have a section with the same name.",
+          "title": "Project Name Or Id"
+        }
+      },
+      "required": [
+        "section_name_or_id",
+        "name"
+      ],
+      "title": "update_sectionArguments",
+      "type": "object"
+    },
+    "outputSchema": {
+      "properties": {
+        "result": {
+          "title": "Result",
+          "type": "string"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "title": "update_sectionOutput",
+      "type": "object"
+    }
+  },
+  {
+    "name": "update_task",
+    "description": "Updates an existing Todoist task's title, description, due date, deadline, priority, labels, or moves it to another project/section/parent.\n\nArgs:\n    task_id: The ID of the Todoist task to update (required).\n    content: New title/content for the task.\n    description: New description or notes for the task.\n    project_name: Name of target project to move task into.\n    due_string: New natural language due date or schedule.\n    priority: Priority integer between 1 (Normal) and 4 (Urgent).\n    labels: New list of label names for the task.\n    section_name_or_id: Target section name or ID to move task into.\n    parent_id: New parent task ID (subtask), or \"\" to promote the task back to the top level.\n    deadline_date: New official deadline date (YYYY-MM-DD), distinct from due_string.\n",
+    "inputSchema": {
+      "properties": {
+        "task_id": {
+          "description": "The Todoist Task ID to update (required).",
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Task Id",
+          "type": "string"
+        },
+        "content": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "New title/content for the task (optional).",
+          "title": "Content"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "maxLength": 4096,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "New description or notes for the task (optional).",
+          "title": "Description"
+        },
+        "project_name": {
+          "anyOf": [
+            {
+              "maxLength": 120,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Target project name to move the task into (optional).",
+          "title": "Project Name"
+        },
+        "due_string": {
+          "anyOf": [
+            {
+              "maxLength": 150,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "New natural language due date/time (e.g. 'tomorrow at 15:00', 'no date', optional).",
+          "title": "Due String"
+        },
+        "priority": {
+          "anyOf": [
+            {
+              "maximum": 4,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "New priority level from 1 (Normal) to 4 (Urgent) (optional).",
+          "title": "Priority"
+        },
+        "labels": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "New list of label names for the task (replaces existing labels, optional).",
+          "title": "Labels"
+        },
+        "section_name_or_id": {
+          "anyOf": [
+            {
+              "maxLength": 120,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Target section name or ID to move the task into (optional).",
+          "title": "Section Name Or Id"
+        },
+        "parent_id": {
+          "anyOf": [
+            {
+              "maxLength": 100,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "New parent Todoist task ID to make this task a subtask of. Pass an empty string (\"\") to remove the current parent and move the task back to the top level (optional). Omit entirely to leave the parent unchanged.",
+          "title": "Parent Id"
+        },
+        "deadline_date": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "New official deadline date in YYYY-MM-DD format (e.g. '2026-09-01'). This is independent from due_string: due_string controls when the task is scheduled to be worked on, while deadline_date sets Todoist's separate 'Deadline' — a hard due-by date shown distinctly in the UI (optional).",
+          "title": "Deadline Date"
+        }
+      },
+      "required": [
+        "task_id"
+      ],
+      "title": "update_taskArguments",
+      "type": "object"
+    },
+    "outputSchema": {
+      "properties": {
+        "result": {
+          "title": "Result",
+          "type": "string"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "title": "update_taskOutput",
+      "type": "object"
+    }
+  }
+]
