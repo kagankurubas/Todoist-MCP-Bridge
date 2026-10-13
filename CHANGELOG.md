@@ -56,6 +56,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - 9 tests for `update_section` (rename by name/ID, project scoping,
   not-found, empty/too-long input, sanitized error). Suite: 172 → 181.
 
+### Fixed
+- MCP clients on Python 3.10–3.12 received indented tool descriptions: the
+  3.13+ compiler strips docstring indentation, and older versions did not.
+  Descriptions are now normalized at tool registration with a port of the
+  3.13 compiler's docstring cleaning, so every supported version publishes
+  the same descriptions as 3.13+. Tool docstrings, names and schemas are
+  unchanged.
+
 ### Backlog
 - `update_section`: expose `order` and `collapsed` (supported by the SDK).
 - `project_move`: needs the Sync API's separate command.

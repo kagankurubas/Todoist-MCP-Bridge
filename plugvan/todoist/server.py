@@ -5,12 +5,13 @@ Integrates Todoist API tools via FastMCP over STDIO.
 
 from mcp.server.fastmcp import FastMCP
 
+from plugvan.todoist.docstrings import clean_docstring
 from plugvan.todoist.tools import tasks, projects, labels, sections, comments
 
 mcp = FastMCP("Todoist")
 
 # Registration order is part of the published surface; keep it stable.
-for _tool in (
+TOOLS = (
     tasks.create_task,
     tasks.list_tasks,
     tasks.get_task,
@@ -33,5 +34,9 @@ for _tool in (
     sections.delete_section,
     comments.add_comment,
     comments.get_comments,
-):
-    mcp.add_tool(_tool)
+)
+
+for _tool in TOOLS:
+    # Python 3.13+ strips docstring indentation at compile time and 3.10-3.12 do not;
+    # normalizing here makes every supported version publish the same descriptions.
+    mcp.add_tool(_tool, description=clean_docstring(_tool.__doc__))
