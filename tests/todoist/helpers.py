@@ -4,6 +4,7 @@ Shared mock objects and helpers for the Todoist MCP tool tests.
 
 from unittest.mock import MagicMock
 import httpx
+from todoist_api_python.api import TodoistAPI
 
 
 class MockProject:
@@ -58,6 +59,18 @@ class MockComment:
         self.content = content
         self.task_id = task_id
         self.posted_at = posted_at
+
+
+WRITE_METHOD_PREFIXES = ("add_", "update_", "delete_", "move_", "complete_", "uncomplete_", "archive_", "unarchive_")
+
+
+def write_call_count(mock_api) -> int:
+    """Total number of write calls made on a mocked SDK client (every add_/update_/delete_/move_/... method of TodoistAPI)."""
+    return sum(
+        getattr(mock_api, name).call_count
+        for name in dir(TodoistAPI)
+        if name.startswith(WRITE_METHOD_PREFIXES)
+    )
 
 
 def _make_http_status_error(status_code: int, text: str = "") -> httpx.HTTPStatusError:

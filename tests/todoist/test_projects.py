@@ -3,6 +3,7 @@ Unit and security tests for the Todoist FastMCP Server: project tools.
 All tests use mocks to ensure zero network calls and deterministic results.
 """
 
+import logging
 from unittest.mock import MagicMock, patch
 from plugvan.todoist.limits import (
     MAX_COLOR_LENGTH,
@@ -18,6 +19,8 @@ from plugvan.todoist.tools.projects import (
 )
 from tests.todoist.helpers import (
     MockProject,
+    _make_http_status_error,
+    write_call_count,
 )
 
 
@@ -293,6 +296,108 @@ def test_delete_project_not_found(mock_get_client):
 def test_delete_project_empty_identifier():
     result = delete_project(project_name_or_id="   ")
     assert "❌ Invalid input: Project identifier cannot be empty" in result
+
+
+# =====================================================================
+# DELETE_PROJECT / UPDATE_PROJECT: EXACT NAME OR ID ONLY
+# =====================================================================
+
+@patch("plugvan.todoist.client.get_api_client")
+def test_delete_project_partial_name_does_not_delete_other_project(mock_get_client):
+    """'Work' must not resolve to 'Homework' and delete it."""
+    mock_api = MagicMock()
+    mock_get_client.return_value = mock_api
+    mock_api.get_projects.return_value = [[MockProject("p1", "Homework")]]
+
+    result = delete_project(project_name_or_id="Work")
+
+    assert result == "⚠️ Silinecek proje bulunamadı: 'Work'."
+    mock_api.delete_project.assert_not_called()
+
+
+@patch("plugvan.todoist.client.get_api_client")
+def test_update_project_partial_name_is_not_found(mock_get_client):
+    mock_api = MagicMock()
+    mock_get_client.return_value = mock_api
+    mock_api.get_projects.return_value = [[MockProject("p1", "Homework")]]
+
+    result = update_project(project_name_or_id="Work", name="Yeni")
+
+    assert result == "⚠️ Güncellenecek proje bulunamadı: 'Work'."
+    assert write_call_count(mock_api) == 0
+
+
+@patch("plugvan.todoist.client.get_api_client")
+def test_delete_and_update_project_ignore_inbox_alias(mock_get_client):
+    mock_api = MagicMock()
+    mock_get_client.return_value = mock_api
+    mock_api.get_projects.return_value = [[MockProject("inbox_1", "Gelen Kutusu", is_inbox=True)]]
+
+    assert delete_project(project_name_or_id="Inbox") == "⚠️ Silinecek proje bulunamadı: 'Inbox'."
+    assert update_project(project_name_or_id="Inbox", name="X") == "⚠️ Güncellenecek proje bulunamadı: 'Inbox'."
+    assert write_call_count(mock_api) == 0
+
+
+@patch("plugvan.todoist.client.get_api_client")
+def test_delete_project_not_found_lists_no_candidates(mock_get_client):
+    mock_api = MagicMock()
+    mock_get_client.return_value = mock_api
+    mock_api.get_projects.return_value = [[MockProject("p1", "Homework"), MockProject("p2", "Kişisel")]]
+
+    result = delete_project(project_name_or_id="Work")
+
+    assert "Homework" not in result
+    assert "Kişisel" not in result
+    assert "•" not in result
+
+
+@patch("plugvan.todoist.client.get_api_client")
+def test_delete_project_duplicate_names_are_ambiguous(mock_get_client):
+    mock_api = MagicMock()
+    mock_get_client.return_value = mock_api
+    mock_api.get_projects.return_value = [[MockProject("p1", "Work"), MockProject("p2", "work")]]
+
+    result = delete_project(project_name_or_id="Work")
+
+    assert result == (
+        "⚠️ 'Work' için birden fazla proje bulundu; lütfen proje ID'sini kullanın:\n"
+        "• Work (p1)\n"
+        "• work (p2)"
+    )
+    assert write_call_count(mock_api) == 0
+
+
+@patch("plugvan.todoist.client.get_api_client")
+def test_update_project_ambiguity_caps_candidates_at_five(mock_get_client):
+    mock_api = MagicMock()
+    mock_get_client.return_value = mock_api
+    mock_api.get_projects.return_value = [[MockProject(f"p{i}", "Work") for i in range(1, 8)]]
+
+    result = update_project(project_name_or_id="Work", color="teal")
+
+    lines = result.splitlines()
+    assert lines[0].startswith("⚠️ 'Work' için birden fazla proje bulundu")
+    assert lines[1:] == [f"• Work (p{i})" for i in range(1, 6)] + ["• …"]
+    assert write_call_count(mock_api) == 0
+
+
+@patch("plugvan.todoist.client.get_api_client")
+def test_delete_and_update_project_lookup_failure_is_generic_error(mock_get_client, caplog):
+    mock_api = MagicMock()
+    mock_get_client.return_value = mock_api
+    mock_api.get_projects.side_effect = _make_http_status_error(500, "upstream secret body")
+
+    with caplog.at_level(logging.ERROR, logger="todoist_mcp"):
+        deleted = delete_project(project_name_or_id="Work")
+        updated = update_project(project_name_or_id="Work", name="Yeni")
+
+    assert deleted == "❌ Failed to delete project 'Work' in Todoist. Check server logs for details."
+    assert updated == "❌ Failed to update project 'Work' in Todoist. Check server logs for details."
+    assert write_call_count(mock_api) == 0
+    for text in (deleted, updated, caplog.text):
+        assert "upstream secret body" not in text
+        assert "500 error" not in text
+    assert "error_type=HTTPStatusError" in caplog.text
 
 
 # =====================================================================

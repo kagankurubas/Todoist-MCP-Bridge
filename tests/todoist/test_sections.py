@@ -3,6 +3,7 @@ Unit and security tests for the Todoist FastMCP Server: section tools.
 All tests use mocks to ensure zero network calls and deterministic results.
 """
 
+import logging
 from unittest.mock import MagicMock, patch
 from plugvan.todoist.limits import (
     MAX_SECTION_NAME_LENGTH,
@@ -16,6 +17,8 @@ from plugvan.todoist.tools.sections import (
 from tests.todoist.helpers import (
     MockProject,
     MockSection,
+    _make_http_status_error,
+    write_call_count,
 )
 
 
@@ -182,3 +185,132 @@ def test_delete_section_not_found(mock_get_client):
 
     result = delete_section(section_name_or_id="Olmayan Bölüm")
     assert "⚠️ Silinecek bölüm bulunamadı: 'Olmayan Bölüm'." in result
+
+
+# =====================================================================
+# DELETE_SECTION / UPDATE_SECTION: EXACT NAME OR ID, AMBIGUITY, NO WRITE ON ERROR
+# =====================================================================
+
+def _two_backlogs():
+    return [[
+        MockSection("sec_1", "Backlog", project_id="proj_1"),
+        MockSection("sec_2", "Backlog", project_id="proj_2"),
+    ]]
+
+
+@patch("plugvan.todoist.client.get_api_client")
+def test_delete_section_same_name_in_two_projects_is_ambiguous(mock_get_client):
+    """With two 'Backlog' sections, delete_section must not delete the first one it finds."""
+    mock_api = MagicMock()
+    mock_get_client.return_value = mock_api
+    mock_api.get_sections.return_value = _two_backlogs()
+
+    result = delete_section(section_name_or_id="Backlog")
+
+    assert result == (
+        "⚠️ 'Backlog' için birden fazla bölüm bulundu; lütfen bölüm ID'sini kullanın:\n"
+        "• Backlog (sec_1)\n"
+        "• Backlog (sec_2)"
+    )
+    mock_api.delete_section.assert_not_called()
+
+
+@patch("plugvan.todoist.client.get_api_client")
+def test_update_section_same_name_unscoped_is_ambiguous(mock_get_client):
+    mock_api = MagicMock()
+    mock_get_client.return_value = mock_api
+    mock_api.get_sections.return_value = _two_backlogs()
+
+    result = update_section(section_name_or_id="Backlog", name="Icebox")
+
+    assert result.startswith("⚠️ 'Backlog' için birden fazla bölüm bulundu; lütfen bölüm ID'sini kullanın:")
+    assert "• Backlog (sec_2)" in result
+    assert write_call_count(mock_api) == 0
+
+
+@patch("plugvan.todoist.client.get_api_client")
+def test_update_section_scope_selects_section_of_that_project(mock_get_client):
+    mock_api = MagicMock()
+    mock_get_client.return_value = mock_api
+    mock_api.get_projects.return_value = [[MockProject("proj_1", "Yazılım"), MockProject("proj_2", "Ev")]]
+    mock_api.get_sections.return_value = _two_backlogs()
+
+    result = update_section(section_name_or_id="Backlog", name="Icebox", project_name_or_id="Ev")
+
+    assert "✅ Bölüm başarıyla güncellendi (ID: sec_2)!" in result
+    mock_api.update_section.assert_called_once_with(section_id="sec_2", name="Icebox")
+
+
+@patch("plugvan.todoist.client.get_api_client")
+def test_delete_and_update_section_partial_name_is_not_found(mock_get_client):
+    mock_api = MagicMock()
+    mock_get_client.return_value = mock_api
+    mock_api.get_sections.return_value = [[MockSection("sec_1", "Backlog", project_id="proj_1")]]
+
+    assert delete_section(section_name_or_id="Back") == "⚠️ Silinecek bölüm bulunamadı: 'Back'."
+    assert update_section(section_name_or_id="Back", name="X") == "⚠️ Güncellenecek bölüm bulunamadı: 'Back'."
+    assert write_call_count(mock_api) == 0
+
+
+@patch("plugvan.todoist.client.get_api_client")
+def test_update_section_partial_project_scope_is_not_found(mock_get_client):
+    mock_api = MagicMock()
+    mock_get_client.return_value = mock_api
+    mock_api.get_projects.return_value = [[MockProject("proj_1", "Yazılım Geliştirme")]]
+    mock_api.get_sections.return_value = [[MockSection("sec_1", "Backlog", project_id="proj_1")]]
+
+    result = update_section(section_name_or_id="Backlog", name="X", project_name_or_id="Yazılım")
+
+    assert result == "⚠️ Belirtilen proje bulunamadı: 'Yazılım'."
+    assert write_call_count(mock_api) == 0
+
+
+@patch("plugvan.todoist.client.get_api_client")
+def test_update_section_ambiguous_project_scope_writes_nothing(mock_get_client):
+    mock_api = MagicMock()
+    mock_get_client.return_value = mock_api
+    mock_api.get_projects.return_value = [[MockProject("proj_1", "Ev"), MockProject("proj_2", "ev")]]
+
+    result = update_section(section_name_or_id="Backlog", name="X", project_name_or_id="Ev")
+
+    assert result.startswith("⚠️ 'Ev' için birden fazla proje bulundu; lütfen proje ID'sini kullanın:")
+    assert write_call_count(mock_api) == 0
+
+
+@patch("plugvan.todoist.client.get_api_client")
+def test_update_section_inbox_scope_without_listed_inbox_is_not_found(mock_get_client):
+    """An Inbox alias with no Inbox project listed has no ID to scope by, so the section is not searched globally."""
+    mock_api = MagicMock()
+    mock_get_client.return_value = mock_api
+    mock_api.get_projects.return_value = [[MockProject("proj_1", "Yazılım")]]
+    mock_api.get_sections.return_value = _two_backlogs()
+
+    result = update_section(section_name_or_id="Backlog", name="X", project_name_or_id="Inbox")
+
+    assert result == "⚠️ Güncellenecek bölüm bulunamadı: 'Backlog'."
+    mock_api.get_sections.assert_not_called()
+    assert write_call_count(mock_api) == 0
+
+
+@patch("plugvan.todoist.client.get_api_client")
+def test_delete_and_update_section_lookup_failure_is_generic_error(mock_get_client, caplog):
+    mock_api = MagicMock()
+    mock_get_client.return_value = mock_api
+    mock_api.get_sections.side_effect = _make_http_status_error(503, "upstream secret body")
+    mock_api.get_projects.side_effect = RuntimeError("project list secret")
+
+    with caplog.at_level(logging.ERROR, logger="todoist_mcp"):
+        deleted = delete_section(section_name_or_id="Backlog")
+        updated = update_section(section_name_or_id="Backlog", name="X")
+        scoped = update_section(section_name_or_id="Backlog", name="X", project_name_or_id="Ev")
+
+    assert deleted == "❌ Failed to delete section 'Backlog' in Todoist. Check server logs for details."
+    assert updated == "❌ Failed to update section 'Backlog' in Todoist. Check server logs for details."
+    assert scoped == updated
+    assert write_call_count(mock_api) == 0
+    for text in (deleted, updated, scoped, caplog.text):
+        assert "upstream secret body" not in text
+        assert "503 error" not in text
+        assert "project list secret" not in text
+    assert "error_type=HTTPStatusError" in caplog.text
+    assert "error_type=RuntimeError" in caplog.text

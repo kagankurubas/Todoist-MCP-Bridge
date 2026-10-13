@@ -71,6 +71,14 @@ class LookupFailed:
 Resolution = Union[Found, NotFound, Ambiguous, LookupFailed]
 
 
+def ambiguous_message(result: Ambiguous, noun: str, shown_query: Optional[str] = None) -> str:
+    """User-facing ambiguity error: the query, then one '• name (ID)' line per candidate."""
+    shown = result.query if shown_query is None else shown_query
+    lines = [f"⚠️ '{shown}' için birden fazla {noun} bulundu; lütfen {noun} ID'sini kullanın:"]
+    lines.extend(f"• {line}" for line in result.candidate_lines())
+    return "\n".join(lines)
+
+
 def _normalize(text: str) -> str:
     """Normalizes string for robust case-insensitive comparison (supporting Turkish and Unicode chars)."""
     return text.strip().lower().replace("ı", "i").replace("İ", "i").replace("i̇", "i")
