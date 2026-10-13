@@ -1,109 +1,109 @@
 # CLAUDE.md
 
-Bu dosya, Claude Code'a (claude.ai/code) bu repoda çalışırken rehberlik eder.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Komutlar
+## Commands
 
 ```bash
-# Mevcut venv'i etkinleştir (Windows)
+# Activate the existing venv (Windows)
 .\venv\Scripts\activate
 
-# Bağımlılıkları kur
+# Install dependencies
 pip install -r requirements.txt
 
-# Tüm test paketini çalıştır
+# Run the full test suite
 pytest
 pytest -v
 
-# Tek bir test dosyası / testi çalıştır
+# Run a single test file / test
 pytest tests/todoist/test_tasks.py
 pytest tests/todoist/test_tasks.py::test_create_task_success -v
 
-# FastAPI webhook sunucusunu çalıştır (app.py)
+# Run the FastAPI webhook server (app.py)
 uvicorn app:app --port 8000
 # Swagger UI: http://127.0.0.1:8000/docs
 
-# MCP sunucusunu doğrudan çalıştır (normalde Claude Desktop tarafından STDIO üzerinden başlatılır)
+# Run the MCP server directly (normally launched by Claude Desktop over STDIO)
 python -m plugvan.todoist
 
-# Bağımsız CLI ile görev oluşturma (main.py)
+# Create tasks with the standalone CLI (main.py)
 python main.py --file tasks_sample.json
 python main.py --json '[{"content": "Task", "due_string": "today", "priority": 2}]'
 
-# Google Tasks -> Todoist senkronizasyon servisi
-python sync_worker.py                    # tek seferlik
-python sync_worker.py --watch --interval 15   # sürekli izleme (polling)
+# Google Tasks -> Todoist sync service
+python sync_worker.py                    # one-shot
+python sync_worker.py --watch --interval 15   # continuous watching (polling)
 
-# Webhook istemcisi (bir JSON dosyasını çalışan app.py örneğine gönderir)
+# Webhook client (sends a JSON file to a running app.py instance)
 python send_to_bridge.py --file tasks_sample.json
 
-# Docker (varsayılan olarak sync_worker.py'yi tek seferlik çalıştırır)
+# Docker (runs sync_worker.py once by default)
 docker build -t todoist-bridge .
 docker run --env-file .env todoist-bridge
 ```
 
-Bu repoda yapılandırılmış bir linter/formatter yok (ruff/black/mypy config yok) — böyle bir şey varmış gibi davranma.
+There is no configured linter/formatter in this repo (no ruff/black/mypy config) — do not act as if there were one.
 
-Gerekli ortam değişkenleri (`.env`, bkz. `.env.example`): `TODOIST_API_TOKEN`, `WEBHOOK_SECRET_TOKEN`, opsiyonel `ALLOWED_ORIGINS` (CORS, varsayılan `*`). `config.py` içindeki Pydantic `Settings` üzerinden yüklenir. Sync worker ayrıca repo kökünde bir Google OAuth `credentials.json` (Desktop Client) dosyasına ihtiyaç duyar; `token.json` ilk kimlik doğrulamada otomatik oluşturulur. Sunucusuz/geçici (serverless/ephemeral) ortamlar için ikisi de `GOOGLE_CREDENTIALS_JSON` / `GOOGLE_TOKEN_JSON` ortam değişkenlerinden sağlanabilir.
+Required environment variables (`.env`, see `.env.example`): `TODOIST_API_TOKEN`, `WEBHOOK_SECRET_TOKEN`, optional `ALLOWED_ORIGINS` (CORS, default `*`). They are loaded through the Pydantic `Settings` in `config.py`. The sync worker additionally needs a Google OAuth `credentials.json` (Desktop Client) file in the repo root; `token.json` is created automatically on first authentication. For serverless/ephemeral environments, both can be supplied via the `GOOGLE_CREDENTIALS_JSON` / `GOOGLE_TOKEN_JSON` environment variables.
 
-## Mimari
+## Architecture
 
-Bu proje tek bir uygulama değil, **hepsi aynı doğrulama/görev-oluşturma çekirdeğinden geçen dört bağımsız giriş noktasından** oluşan bir Python araç setidir:
+This project is not a single application but a Python toolkit made of **four independent entry points that all go through the same validation/task-creation core**:
 
-- `plugvan.todoist` (`plugvan/todoist/` paketi, `python -m plugvan.todoist`) — Claude Desktop'a sunulan araç yüzeyi; STDIO üzerinden çalışan FastMCP sunucusu. Kendi kendine yeterlidir: Todoist ile `todoist_client.py` üzerinden değil, doğrudan resmi `todoist-api-python` SDK'sı üzerinden konuşur ve kendi isim çözümleme/doğrulama mantığına sahiptir.
-- `app.py` — FastAPI REST sunucusu (n8n/Make gibi otomasyonlar için webhook hedefi). Kimlik doğrulama, sabit-zamanlı (`secrets.compare_digest`) `X-Bridge-Token` header karşılaştırmasıyla yapılır.
-- `main.py` — doğrudan çalıştırılan CLI aracı; ayrıca `build_project_map` / `resolve_project_id` fonksiyonlarını export eder ve bunlar `app.py` tarafından kendi proje-adı çözümlemesi için import edilip yeniden kullanılır.
-- `sync_worker.py` — Google Tasks'ten görev çeken, her öğeyi `parse_google_task` ile dönüştüren, Todoist'e gönderen ve başarılı olan görevleri kaynak Google Task'ten silen OAuth 2.0 servisi.
+- `plugvan.todoist` (the `plugvan/todoist/` package, `python -m plugvan.todoist`) — the tool surface exposed to Claude Desktop; a FastMCP server running over STDIO. It is self-contained: it talks to Todoist not through `todoist_client.py` but directly through the official `todoist-api-python` SDK, and has its own name-resolution/validation logic.
+- `app.py` — FastAPI REST server (webhook target for automations such as n8n/Make). Authentication is done with a constant-time (`secrets.compare_digest`) comparison of the `X-Bridge-Token` header.
+- `main.py` — a CLI tool run directly; it also exports the `build_project_map` / `resolve_project_id` functions, which `app.py` imports and reuses for its own project-name resolution.
+- `sync_worker.py` — an OAuth 2.0 service that pulls tasks from Google Tasks, transforms each item with `parse_google_task`, sends it to Todoist, and deletes the successfully created tasks from the source Google Task.
 
-### Paylaşılan çekirdek (`main.py`, `app.py`, `sync_worker.py` tarafından kullanılır)
+### Shared core (used by `main.py`, `app.py`, `sync_worker.py`)
 
-- `models.py` — `TaskPayload` (tekil görev) ve `BatchTaskPayload` (`tasks: List[TaskPayload]`, maksimum 50) her şeyin doğrulandığı Pydantic şemalarıdır. `project_name` varsayılan olarak `"Odak & Gelişim"`dir; `priority` 1 (normal) ile 4 (acil) arasındadır — dikkat: Todoist'in kendi API'si ve `sync_worker.py`'nin etiket ayrıştırıcısı (`p1`=acil..`p4`=normal) bu skalayı tersine çevirir, bu nedenle öncelik eşlemesi `parse_google_task` içinde açıkça yapılır.
-- `parser.py` — `parse_tasks_from_json`, ham LLM çıktısındaki markdown kod bloklarını (` ```json ... ``` `) temizler, ardından üç JSON biçimini kabul eder: düz bir liste, `{"tasks": [...]}` ya da tekil bir görev objesi. Hata durumunda `TaskParseError` fırlatır.
-- `todoist_client.py` — Todoist REST API v1 üzerine ince bir `requests` sarmalayıcısı (`main.py`, `app.py`, `sync_worker.py` tarafından kullanılır; `plugvan.todoist` tarafından KULLANILMAZ, o SDK kullanır). `app.py`'nin FastAPI exception handler'ları aracılığıyla HTTP yanıtlarına eşlediği tipli exception'lar fırlatır (`TodoistAuthError` 401, `TodoistValidationError` 400, `TodoistServerError` 5xx, temel sınıf olarak `TodoistAPIError`). `create_task`, ilk pozisyonel argüman olarak hem keyword argümanları hem de bir `TaskPayload`/dict kabul eder.
-- Proje-adı çözümlemesi, aynı case-insensitive/Unicode-normalize edilmiş mantıkla bilinçli olarak üç farklı yerde tekrarlanır: `main.py::resolve_project_id` (dict lookup), `todoist_client.py::resolve_project_name` (Todoist REST), ve `plugvan/todoist/resolvers.py::resolve_project` (SDK; ek olarak Inbox takma adı, tek adaylı kısmi eşleşme ve belirsizlik katmanlarıyla). Davranış farkı bilinçlidir: MCP tool'ları bilinmeyen isimde hata döndürür, CLI/webhook/sync worker ise Inbox'a düşer. Çözümleme mantığına dokunurken değişikliğin her üçüne de uygulanması gerekip gerekmediğini kontrol et.
+- `models.py` — `TaskPayload` (single task) and `BatchTaskPayload` (`tasks: List[TaskPayload]`, maximum 50) are the Pydantic schemas everything is validated against. `project_name` defaults to `"Odak & Gelişim"`; `priority` ranges from 1 (normal) to 4 (urgent) — note: Todoist's own API and `sync_worker.py`'s tag parser (`p1`=urgent..`p4`=normal) invert this scale, which is why the priority mapping is done explicitly in `parse_google_task`.
+- `parser.py` — `parse_tasks_from_json` strips markdown code fences (` ```json ... ``` `) from raw LLM output, then accepts three JSON shapes: a plain list, `{"tasks": [...]}`, or a single task object. Raises `TaskParseError` on failure.
+- `todoist_client.py` — a thin `requests` wrapper over the Todoist REST API v1 (used by `main.py`, `app.py`, `sync_worker.py`; NOT used by `plugvan.todoist`, which uses the SDK). It raises typed exceptions that `app.py`'s FastAPI exception handlers map to HTTP responses (`TodoistAuthError` 401, `TodoistValidationError` 400, `TodoistServerError` 5xx, with `TodoistAPIError` as the base class). `create_task` accepts both keyword arguments and a `TaskPayload`/dict as the first positional argument.
+- Project-name resolution is deliberately duplicated in three places with the same case-insensitive/Unicode-normalized logic: `main.py::resolve_project_id` (dict lookup), `todoist_client.py::resolve_project_name` (Todoist REST), and `plugvan/todoist/resolvers.py::resolve_project` (SDK; additionally with Inbox alias, single-candidate partial match and ambiguity layers). The difference in behavior is deliberate: MCP tools return an error on an unknown name, while the CLI/webhook/sync worker fall back to the Inbox. When touching the resolution logic, check whether the change needs to be applied to all three.
 
-### `plugvan.todoist` iç yapısı
+### `plugvan.todoist` internals
 
-Üst düzey `plugvan/` paketi boştur (henüz çok uygulamalı sunucu kodu yok); Todoist entegrasyonu `plugvan/todoist/` altındadır:
-- `server.py` — `FastMCP("Todoist")` nesnesi; 22 tool burada `mcp.add_tool(...)` ile **sabit sırada** açıkça kaydedilir (sıra yayınlanan yüzeyin parçasıdır, değiştirme).
-- `tools/` — domain başına bir modül (`tasks`, `projects`, `sections`, `labels`, `comments`); tool'lar dekoratörsüz düz fonksiyonlardır. Deadline/HTTP hata yardımcıları yalnızca `tasks.py` içindedir.
-- `client.py` — `get_api_client()`; `TODOIST_API_TOKEN`'dan her çağrıda bir `TodoistAPI` oluşturur. Tool'lar bunu modül özniteliği üzerinden çağırır (`client.get_api_client()`), böylece testlerde **tek patch hedefi** `plugvan.todoist.client.get_api_client` olur.
-- `limits.py` — `MAX_*_LENGTH` sabitleri. `resolvers.py` — `resolve_project` / `resolve_section` / `resolve_label`, dört sonuç tipi (`Found`, `NotFound`, `Ambiguous`, `LookupFailed`), `ambiguous_message`, `_normalize`.
-- `__main__.py` — giriş noktası: `load_dotenv()` ve `logging.basicConfig(...)` yalnızca burada çalışır. Logger adı tüm modüllerde `"todoist_mcp"`dir.
+The top-level `plugvan/` package is empty (no multi-app server code yet); the Todoist integration lives under `plugvan/todoist/`:
+- `server.py` — the `FastMCP("Todoist")` object; the 22 tools are registered here explicitly with `mcp.add_tool(...)` **in a fixed order** (the order is part of the published surface, do not change it).
+- `tools/` — one module per domain (`tasks`, `projects`, `sections`, `labels`, `comments`); tools are plain functions without decorators. The deadline/HTTP error helpers live only in `tasks.py`.
+- `client.py` — `get_api_client()`; builds a `TodoistAPI` from `TODOIST_API_TOKEN` on every call. Tools call it through the module attribute (`client.get_api_client()`), so in tests the **single patch target** is `plugvan.todoist.client.get_api_client`.
+- `limits.py` — the `MAX_*_LENGTH` constants. `resolvers.py` — `resolve_project` / `resolve_section` / `resolve_label`, four result types (`Found`, `NotFound`, `Ambiguous`, `LookupFailed`), `ambiguous_message`, `_normalize`.
+- `__main__.py` — the entry point: `load_dotenv()` and `logging.basicConfig(...)` run only here. The logger name is `"todoist_mcp"` in all modules.
 
-Import yan etkileri: bizim modüllerimizin import yan etkisi yoktur. Ancak `server.py` import edildiğinde SDK'nın `FastMCP()` constructor'ı root logger'a bir log handler (`RichHandler`) ekler; bu bizim kodumuzdan değil SDK'dan gelir.
+Import side effects: our modules have no import side effects. However, when `server.py` is imported, the SDK's `FastMCP()` constructor adds a log handler (`RichHandler`) to the root logger; this comes from the SDK, not from our code.
 
-Her araç bağımsız olarak:
-1. Girdileri `limits.py`'deki `MAX_*_LENGTH` sabitlerine göre doğrular.
-2. İnsan tarafından okunabilir isimleri `resolve_project` / `resolve_section` / `resolve_label` ile ID'lere çözümler (`_normalize` ile Türkçe'ye duyarlı normalizasyon dahil). Her çözümleme dört sonuçtan birini döndürür ve tool her birini ayrı ele alır; hata durumlarında hiçbir şey yazılmaz:
-   - `Found(id, name)`: tek eşleşme; mesajlarda kullanıcının girdisi değil `name` (Todoist'teki gerçek ad) gösterilir. `id=None` yalnızca listede Inbox yokken Inbox takma adı kullanıldığında olur.
-   - `NotFound(query)`: `⚠️ … bulunamadı` mesajı, aday listesi yok.
-   - `Ambiguous(query, candidates, has_more)`: `ambiguous_message` ile en fazla 5 `isim (ID)` aday ve ID kullanma önerisi.
-   - `LookupFailed(error_type)`: tool'un genel `❌ … Check server logs` mesajı; log'a yalnızca `error_type` yazılır, exception metni veya HTTP yanıtı asla.
+Each tool independently:
+1. Validates inputs against the `MAX_*_LENGTH` constants in `limits.py`.
+2. Resolves human-readable names to IDs with `resolve_project` / `resolve_section` / `resolve_label` (including Turkish-aware normalization via `_normalize`). Each resolution returns one of four results and the tool handles each one separately; nothing is written in the failure cases:
+   - `Found(id, name)`: a single match; messages show `name` (the actual name in Todoist), not the user's input. `id=None` only happens when the Inbox alias is used while there is no Inbox in the list.
+   - `NotFound(query)`: a `⚠️ … bulunamadı` message, no candidate list.
+   - `Ambiguous(query, candidates, has_more)`: via `ambiguous_message`, at most 5 `name (ID)` candidates and a suggestion to use the ID.
+   - `LookupFailed(error_type)`: the tool's generic `❌ … Check server logs` message; only `error_type` is written to the log, never the exception text or the HTTP response.
 
-   Eşleşme kuralları tool'a göre değişir:
-   - Proje, yıkıcı tool'larda (`delete_project`, `update_project`): yalnızca ID veya tam isim.
-   - Proje, `update_section`'ın proje kapsamında: ID → Inbox takma adı → tam isim.
-   - Proje, diğer tool'larda (`create_task`, `update_task`, `create_project` üst proje, `create_section`, `list_sections`): ID → Inbox takma adı → tam isim → yalnızca tek aday varsa kısmi eşleşme.
-   - Bölüm, her yerde: yalnızca ID veya tam isim, kısmi eşleşme yok. Görev tool'larında yalnızca çözümlenen projenin içinde aranır; `update_task`'ta proje verilmemişse görevin mevcut projesinde.
-   - Etiket: baştaki `@` atılır; yalnızca ID veya tam isim. Yalnızca harf farkı olan iki etiket belirsizdir.
-   - `create_task`/`update_task` hedefi önce doğrular, sonra yazar.
-3. Todoist SDK'sını `client.get_api_client()` ile oluşturulan `TodoistAPI` üzerinden çağırır.
+   Matching rules vary by tool:
+   - Project, in destructive tools (`delete_project`, `update_project`): ID or exact name only.
+   - Project, in `update_section`'s project scope: ID → Inbox alias → exact name.
+   - Project, in other tools (`create_task`, `update_task`, `create_project` parent project, `create_section`, `list_sections`): ID → Inbox alias → exact name → partial match only if there is a single candidate.
+   - Section, everywhere: ID or exact name only, no partial match. In task tools it is searched only within the resolved project; in `update_task`, if no project is given, within the task's current project.
+   - Label: a leading `@` is stripped; ID or exact name only. Two labels that differ only in letter case are ambiguous.
+   - `create_task`/`update_task` validate the target first, then write.
+3. Calls the Todoist SDK through the `TodoistAPI` built by `client.get_api_client()`.
 
-Tool isimlerine uygulama prefix'i (`todoist_create_task` gibi) verme kararı ertelendi: ileride bağımsız `fastmcp`'nin `mount(server, namespace=...)` özelliğiyle, kod değiştirmeden yapılacak. Bu, SDK'daki FastMCP'den bağımsız `fastmcp`'ye geçişi gerektirir; bu yüzden `requirements.txt`'teki `fastmcp` bağımlılığını silme.
+The decision to give tool names an application prefix (such as `todoist_create_task`) was postponed: it will be done later with the standalone `fastmcp`'s `mount(server, namespace=...)` feature, without changing code. This requires moving from the SDK's FastMCP to the standalone `fastmcp`; therefore do not remove the `fastmcp` dependency from `requirements.txt`.
 
-### `sync_worker.py` etiket sözdizimi
+### `sync_worker.py` tag syntax
 
-`parse_google_task`, serbest metin Google Task başlıklarından/notlarından regex ile yapılandırılmış alanları şu sırayla çıkarır: öncelik (`p[1-4]`), teslim tarihi (`@today`, `@tomorrow at 15:00`, ...), proje (`[Proje Adı]` veya `#Proje Adı`), ardından notlardan çekilen ve Google'ın `due` tarihiyle birleştirilip ISO `due_datetime` haline getirilen satır içi bir saat (`Saat: HH:MM` veya çıplak `HH:MM`). Etiket çıkarımından sonra kalan metin `content` olur.
+`parse_google_task` extracts structured fields from free-text Google Task titles/notes with regexes in this order: priority (`p[1-4]`), due date (`@today`, `@tomorrow at 15:00`, ...), project (`[Project Name]` or `#Project Name`), then an inline time pulled from the notes and combined with Google's `due` date into an ISO `due_datetime` (`Saat: HH:MM` or a bare `HH:MM`). The text left after tag extraction becomes `content`.
 
-### Testler
+### Tests
 
-`tests/` modül yapısını yansıtır ve tüm ağ/API çağrılarını mock'lar — gerçek bir Todoist veya Google çağrısı yapılmaz.
-- `tests/todoist/` — `plugvan.todoist` testleri, paketi birebir yansıtır: `test_tasks.py`, `test_projects.py`, `test_sections.py`, `test_labels.py`, `test_comments.py`, `test_resolvers.py`, `test_server_surface.py`. Kendi `__init__.py`'si vardır (`tests.todoist` olarak import edilir).
-- `tests/todoist/helpers.py` — SDK client'ını topyekûn mock'lamak yerine SDK'nın obje özniteliklerini yansıtan hafif `MockProject`/`MockLabel`/`MockSection`/`MockComment`/`MockTask` sınıfları, `_make_http_status_error` ve `write_call_count` (mock'lanmış SDK'daki tüm yazma çağrılarını sayar; `get_`/`filter_`/`search_` dışındaki her public metot yazma sayılır). `test_` ile başlamadığı için pytest tarafından toplanmaz.
-- Diğerleri kökte: `test_api.py`, `test_models.py`, `test_parser.py`, `test_todoist_client.py`, `test_project_resolution.py`.
+`tests/` mirrors the module structure and mocks all network/API calls — no real Todoist or Google calls are made.
+- `tests/todoist/` — the `plugvan.todoist` tests, mirroring the package one-to-one: `test_tasks.py`, `test_projects.py`, `test_sections.py`, `test_labels.py`, `test_comments.py`, `test_resolvers.py`, `test_server_surface.py`. It has its own `__init__.py` (imported as `tests.todoist`).
+- `tests/todoist/helpers.py` — lightweight `MockProject`/`MockLabel`/`MockSection`/`MockComment`/`MockTask` classes that mirror the SDK's object attributes instead of mocking the SDK client wholesale, `_make_http_status_error`, and `write_call_count` (counts all write calls on the mocked SDK; every public method other than `get_`/`filter_`/`search_` counts as a write). Because it does not start with `test_`, pytest does not collect it.
+- The others are at the root: `test_api.py`, `test_models.py`, `test_parser.py`, `test_todoist_client.py`, `test_project_resolution.py`.
 
-**Surface snapshot kuralı:** `tests/fixtures/todoist_mcp_tool_surface.json`, MCP tool yüzeyinin (22 tool: isim, açıklama, `inputSchema`, `outputSchema`) taşımadan önce eski modülden bir kez kaydedilmiş halidir; `test_server_surface.py` canlı sunucuyu buna isme göre (sıradan bağımsız) karşılaştırır. Fixture bilinçli bir davranış değişikliği olmadıkça **asla yeniden üretilmez**; bir tool'un açıklamasını/parametresini değiştirmek testi kırar ve fixture'ı güncellemek o değişikliği bilerek kabul etmek demektir.
+**Surface snapshot rule:** `tests/fixtures/todoist_mcp_tool_surface.json` is a one-time recording of the MCP tool surface (22 tools: name, description, `inputSchema`, `outputSchema`) taken from the old module before the move; `test_server_surface.py` compares the live server against it by name (order-independent). The fixture is **never regenerated** unless there is a deliberate behavior change; changing a tool's description/parameter breaks the test, and updating the fixture means knowingly accepting that change.
 
 ## Language
 
@@ -113,12 +113,12 @@ All commit messages, PR titles and bodies, issue titles and bodies, review comme
 
 ### Issue tracker
 
-Issue'lar GitHub Issues'ta (`kagankurubas/plugvan`) tutulur, `gh` CLI ile yönetilir. Bkz. `docs/agents/issue-tracker.md`.
+Issues are tracked in GitHub Issues (`kagankurubas/plugvan`) and managed with the `gh` CLI. See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 
-Varsayılan beş etiket kullanılır: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. Bkz. `docs/agents/triage-labels.md`.
+The default five labels are used: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
 
 ### Domain docs
 
-Single-context düzen: repo kökünde tek bir `CONTEXT.md` + `docs/adr/`. Bkz. `docs/agents/domain.md`.
+Single-context layout: a single `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
