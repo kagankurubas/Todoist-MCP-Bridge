@@ -105,6 +105,10 @@ Tool isimlerine uygulama prefix'i (`todoist_create_task` gibi) verme kararı ert
 
 **Surface snapshot kuralı:** `tests/fixtures/todoist_mcp_tool_surface.json`, MCP tool yüzeyinin (22 tool: isim, açıklama, `inputSchema`, `outputSchema`) taşımadan önce eski modülden bir kez kaydedilmiş halidir; `test_server_surface.py` canlı sunucuyu buna isme göre (sıradan bağımsız) karşılaştırır. Fixture bilinçli bir davranış değişikliği olmadıkça **asla yeniden üretilmez**; bir tool'un açıklamasını/parametresini değiştirmek testi kırar ve fixture'ı güncellemek o değişikliği bilerek kabul etmek demektir.
 
+## Language
+
+All commit messages, PR titles and bodies, issue titles and bodies, review comments, CHANGELOG entries and in-repo documentation are written in English, regardless of the language used in chat with the maintainer. The only exception is README.tr.md, the Turkish translation of README.md, which is maintained as a user-facing second language.
+
 ## Agent skills
 
 ### Issue tracker
