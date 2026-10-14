@@ -5,15 +5,16 @@ All tests use mocks to ensure zero network calls and deterministic results.
 
 import logging
 from unittest.mock import MagicMock
+import pytest
 
 from plugvan.todoist.resolvers import (
-    INBOX_DISPLAY_NAME,
     MAX_AMBIGUOUS_CANDIDATES,
     Ambiguous,
     Candidate,
     Found,
     LookupFailed,
     NotFound,
+    inbox_display_name,
     resolve_label,
     resolve_project,
     resolve_section,
@@ -23,6 +24,8 @@ from tests.todoist.helpers import (
     MockProject,
     MockSection,
 )
+
+pytestmark = pytest.mark.usefixtures("english_output")
 
 
 def _api_with_projects(*projects):
@@ -189,7 +192,8 @@ def test_resolve_project_inbox_alias_without_listed_inbox_is_found_without_id():
 
     result = resolve_project(mock_api, "GELEN KUTUSU", allow_inbox_alias=True, allow_partial=True)
 
-    assert result == Found(None, INBOX_DISPLAY_NAME)
+    assert result == Found(None, "Inbox")
+    assert inbox_display_name() == "Inbox"
 
 
 # =====================================================================

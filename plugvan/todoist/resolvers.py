@@ -19,7 +19,11 @@ INBOX_ALIASES = frozenset({"gelen kutusu", "inbox", "gelenkutusu", "inbox/gelen 
 # The query create_task resolves when no project name is given (an Inbox alias). Kept apart
 # from the localized display name so the output language never changes what it resolves to.
 INBOX_QUERY = "Gelen Kutusu"
-INBOX_DISPLAY_NAME = "Gelen Kutusu"
+
+
+def inbox_display_name() -> str:
+    """The Inbox name shown when an Inbox alias matches but no Inbox is listed, in the output language."""
+    return message("inbox.display_name")
 
 
 @dataclass(frozen=True)
@@ -177,7 +181,7 @@ def resolve_project(
         if inbox:
             return inbox
         alias_named = _pick(query, [p for p in projects if _normalize(getattr(p, "name", "")) in INBOX_ALIASES])
-        return alias_named or Found(None, message("inbox.display_name"))
+        return alias_named or Found(None, inbox_display_name())
 
     exact = _pick(query, [p for p in projects if _normalize(getattr(p, "name", "")) == normalized])
     if exact:
