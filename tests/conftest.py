@@ -19,6 +19,8 @@ import socket
 import pytest
 
 os.environ["TODOIST_API_TOKEN"] = "test-todoist-token-not-real"
+# Every test starts from the code's default output language; a PLUGVAN_LANG from the shell never applies.
+os.environ.pop("PLUGVAN_LANG", None)
 
 
 class NetworkAccessBlocked(OSError):
