@@ -10,6 +10,7 @@ from plugvan.todoist.limits import (
     MAX_COLOR_LENGTH,
     MAX_LABEL_NAME_LENGTH,
 )
+from plugvan.todoist.messages import MissingMessageError
 from plugvan.todoist.resolvers import (
     Ambiguous,
     LookupFailed,
@@ -38,6 +39,8 @@ def list_labels() -> str:
             lines.append(f"{idx}. [{label.id}] @{label.name}{is_fav}{color_info}")
 
         return "\n".join(lines).strip()
+    except MissingMessageError:
+        raise
     except Exception as e:
         logger.error(
             "Failed to list labels from Todoist (error_type=%s)",
@@ -97,6 +100,8 @@ def create_label(
             f"• İsim: @{label.name}"
             f"{color_str}"
         )
+    except MissingMessageError:
+        raise
     except Exception as e:
         logger.error(
             "Failed to create label in Todoist (name=%s, error_type=%s)",
@@ -165,7 +170,7 @@ def update_label(
         if isinstance(resolved, LookupFailed):
             return failure_message
         if isinstance(resolved, Ambiguous):
-            return ambiguous_message(resolved, "etiket", shown_query=f"@{clean_identifier}")
+            return ambiguous_message(resolved, "ambiguous.label", shown_query=f"@{clean_identifier}")
         if isinstance(resolved, NotFound):
             return f"⚠️ Güncellenecek etiket bulunamadı: '@{clean_identifier}'."
         label_id = resolved.id
@@ -187,6 +192,8 @@ def update_label(
             f"Yapılan değişiklikler:\n"
             f"{changes_summary}"
         )
+    except MissingMessageError:
+        raise
     except Exception as e:
         logger.error(
             "Failed to update label in Todoist (identifier=%s, error_type=%s)",
@@ -226,7 +233,7 @@ def delete_label(
         if isinstance(resolved, LookupFailed):
             return failure_message
         if isinstance(resolved, Ambiguous):
-            return ambiguous_message(resolved, "etiket", shown_query=f"@{clean_identifier}")
+            return ambiguous_message(resolved, "ambiguous.label", shown_query=f"@{clean_identifier}")
         if isinstance(resolved, NotFound):
             return f"⚠️ Silinecek etiket bulunamadı: '@{clean_identifier}'."
         label_id, label_name = resolved.id, resolved.name
@@ -238,6 +245,8 @@ def delete_label(
             return f"🗑️ Etiket başarıyla silindi: {display_name}."
         else:
             return f"⚠️ Etiket silinemedi: {display_name}."
+    except MissingMessageError:
+        raise
     except Exception as e:
         logger.error(
             "Failed to delete label in Todoist (identifier=%s, error_type=%s)",

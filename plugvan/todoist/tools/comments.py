@@ -10,6 +10,7 @@ from plugvan.todoist.limits import (
     MAX_TASK_ID_LENGTH,
     MAX_COMMENT_LENGTH,
 )
+from plugvan.todoist.messages import MissingMessageError
 
 logger = logging.getLogger("todoist_mcp")
 
@@ -63,6 +64,8 @@ def add_comment(
             f"• İçerik: {comment.content}"
             f"{posted_str}"
         )
+    except MissingMessageError:
+        raise
     except Exception as e:
         logger.error(
             "Failed to add comment to task in Todoist (task_id=%s, error_type=%s)",
@@ -109,6 +112,8 @@ def get_comments(
             lines.append(f"{idx}. [{comment.id}]{posted} {comment.content}")
 
         return "\n".join(lines).strip()
+    except MissingMessageError:
+        raise
     except Exception as e:
         logger.error(
             "Failed to retrieve comments from Todoist (task_id=%s, error_type=%s)",

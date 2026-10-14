@@ -11,6 +11,7 @@ from plugvan.todoist.limits import (
     MAX_TASK_ID_LENGTH,
     MAX_COLOR_LENGTH,
 )
+from plugvan.todoist.messages import MissingMessageError, message
 from plugvan.todoist.resolvers import (
     Ambiguous,
     LookupFailed,
@@ -47,7 +48,7 @@ def list_projects() -> str:
             if counter is None:
                 counter = [1]
             for project in children_map.get(parent_id, []):
-                is_inbox = " [Gelen Kutusu]" if getattr(project, "is_inbox_project", False) else ""
+                is_inbox = message("inbox.marker") if getattr(project, "is_inbox_project", False) else ""
                 is_fav = " ⭐" if getattr(project, "is_favorite", False) else ""
                 color_info = f", Renk: {project.color}" if getattr(project, "color", None) else ""
                 
@@ -67,6 +68,8 @@ def list_projects() -> str:
         format_project_tree(None, depth=0)
 
         return "\n".join(lines).strip()
+    except MissingMessageError:
+        raise
     except Exception as e:
         logger.error(
             "Failed to list projects from Todoist (error_type=%s)",
@@ -115,6 +118,8 @@ def get_project(
             f"• Görünüm Stili: {view_style_display}\n"
             f"• URL: {project.url}"
         )
+    except MissingMessageError:
+        raise
     except Exception as e:
         logger.error(
             "Failed to retrieve project from Todoist (project_id=%s, error_type=%s)",
@@ -183,7 +188,7 @@ def create_project(
             if isinstance(parent, LookupFailed):
                 return failure_message
             if isinstance(parent, Ambiguous):
-                return ambiguous_message(parent, "proje")
+                return ambiguous_message(parent, "ambiguous.project")
             # Found(None, ...) is an Inbox alias with no listed Inbox: a parent needs a real project ID.
             if isinstance(parent, NotFound) or parent.id is None:
                 return f"⚠️ Belirtilen üst proje bulunamadı: '{clean_parent}'."
@@ -207,6 +212,8 @@ def create_project(
             f"{color_str}"
             f"{url_str}"
         )
+    except MissingMessageError:
+        raise
     except Exception as e:
         logger.error(
             "Failed to create project in Todoist (name=%s, error_type=%s)",
@@ -281,7 +288,7 @@ def update_project(
         if isinstance(resolved, LookupFailed):
             return failure_message
         if isinstance(resolved, Ambiguous):
-            return ambiguous_message(resolved, "proje")
+            return ambiguous_message(resolved, "ambiguous.project")
         if isinstance(resolved, NotFound):
             return f"⚠️ Güncellenecek proje bulunamadı: '{clean_identifier}'."
         project_id = resolved.id
@@ -303,6 +310,8 @@ def update_project(
             f"Yapılan değişiklikler:\n"
             f"{changes_summary}"
         )
+    except MissingMessageError:
+        raise
     except Exception as e:
         logger.error(
             "Failed to update project in Todoist (identifier=%s, error_type=%s)",
@@ -342,7 +351,7 @@ def delete_project(
         if isinstance(resolved, LookupFailed):
             return failure_message
         if isinstance(resolved, Ambiguous):
-            return ambiguous_message(resolved, "proje")
+            return ambiguous_message(resolved, "ambiguous.project")
         if isinstance(resolved, NotFound):
             return f"⚠️ Silinecek proje bulunamadı: '{clean_identifier}'."
         project_id, project_name = resolved.id, resolved.name
@@ -354,6 +363,8 @@ def delete_project(
             return f"🗑️ Proje başarıyla silindi: {display_name}."
         else:
             return f"⚠️ Proje silinemedi: {display_name}."
+    except MissingMessageError:
+        raise
     except Exception as e:
         logger.error(
             "Failed to delete project in Todoist (identifier=%s, error_type=%s)",

@@ -10,6 +10,7 @@ from plugvan.todoist.limits import (
     MAX_PROJECT_NAME_LENGTH,
     MAX_SECTION_NAME_LENGTH,
 )
+from plugvan.todoist.messages import MissingMessageError
 from plugvan.todoist.resolvers import (
     Ambiguous,
     LookupFailed,
@@ -67,7 +68,7 @@ def create_section(
         if isinstance(project, LookupFailed):
             return failure_message
         if isinstance(project, Ambiguous):
-            return ambiguous_message(project, "proje")
+            return ambiguous_message(project, "ambiguous.project")
         # Found(None, ...) is an Inbox alias with no listed Inbox: a section needs a real project ID.
         if isinstance(project, NotFound) or project.id is None:
             return f"⚠️ Bölüm oluşturulacak hedef proje bulunamadı: '{clean_project}'."
@@ -81,6 +82,8 @@ def create_section(
             f"• İsim: {section.name}\n"
             f"• Proje: '{project_name}' (ID: {project_id})"
         )
+    except MissingMessageError:
+        raise
     except Exception as e:
         logger.error(
             "Failed to create section in Todoist (name=%s, error_type=%s)",
@@ -117,7 +120,7 @@ def list_sections(
             if isinstance(project, LookupFailed):
                 return failure_message
             if isinstance(project, Ambiguous):
-                return ambiguous_message(project, "proje")
+                return ambiguous_message(project, "ambiguous.project")
             # Found(None, ...) is an Inbox alias with no listed Inbox: listing all sections would be wrong.
             if isinstance(project, NotFound) or project.id is None:
                 return f"⚠️ Belirtilen proje bulunamadı: '{clean_project}'."
@@ -136,6 +139,8 @@ def list_sections(
             lines.append(f"{idx}. [{section.id}] {section.name} (Proje ID: {section.project_id})")
 
         return "\n".join(lines).strip()
+    except MissingMessageError:
+        raise
     except Exception as e:
         logger.error(
             "Failed to list sections from Todoist (error_type=%s)",
@@ -205,7 +210,7 @@ def update_section(
             if isinstance(project, LookupFailed):
                 return failure_message
             if isinstance(project, Ambiguous):
-                return ambiguous_message(project, "proje")
+                return ambiguous_message(project, "ambiguous.project")
             if isinstance(project, NotFound):
                 return f"⚠️ Belirtilen proje bulunamadı: '{clean_project}'."
             if project.id is None:
@@ -217,7 +222,7 @@ def update_section(
         if isinstance(section, LookupFailed):
             return failure_message
         if isinstance(section, Ambiguous):
-            return ambiguous_message(section, "bölüm")
+            return ambiguous_message(section, "ambiguous.section")
         if isinstance(section, NotFound):
             return section_not_found
         section_id, old_name = section.id, section.name
@@ -229,6 +234,8 @@ def update_section(
             f"• Eski isim: '{old_name}'\n"
             f"• Yeni isim: '{clean_name}'"
         )
+    except MissingMessageError:
+        raise
     except Exception as e:
         logger.error(
             "Failed to update section in Todoist (identifier=%s, error_type=%s)",
@@ -268,7 +275,7 @@ def delete_section(
         if isinstance(section, LookupFailed):
             return failure_message
         if isinstance(section, Ambiguous):
-            return ambiguous_message(section, "bölüm")
+            return ambiguous_message(section, "ambiguous.section")
         if isinstance(section, NotFound):
             return f"⚠️ Silinecek bölüm bulunamadı: '{clean_identifier}'."
         section_id, section_name = section.id, section.name
@@ -280,6 +287,8 @@ def delete_section(
             return f"🗑️ Bölüm başarıyla silindi: {display_name}."
         else:
             return f"⚠️ Bölüm silinemedi: {display_name}."
+    except MissingMessageError:
+        raise
     except Exception as e:
         logger.error(
             "Failed to delete section in Todoist (identifier=%s, error_type=%s)",
