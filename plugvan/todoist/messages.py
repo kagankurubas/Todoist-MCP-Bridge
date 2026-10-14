@@ -108,6 +108,56 @@ CATALOGS: dict[str, dict[str, str]] = {
         "task.deleted": "🗑️ Task permanently deleted (ID: {id}).",
         "task.delete_unconfirmed": "⚠️ The task could not be deleted (ID: {id}). It may already be deleted or not exist.",
         "task.delete_failed": "❌ Failed to delete task in Todoist (ID: {id}). Check server logs for details.",
+        # Shared: target display in delete messages
+        "display.named": "'{name}' (ID: {id})",
+        "display.id_only": "ID: {id}",
+        # Shared: input validation (projects)
+        "invalid.project_id_empty": "❌ Invalid input: Project ID cannot be empty or whitespace.",
+        "invalid.project_id_too_long": "❌ Invalid input: Project ID exceeds maximum length of {limit} characters.",
+        "invalid.project_name_empty": "❌ Invalid input: Project name cannot be empty or whitespace.",
+        "invalid.parent_project_identifier_too_long": "❌ Invalid input: Parent project identifier exceeds maximum length of {limit} characters.",
+        "invalid.color_too_long": "❌ Invalid input: Color name exceeds maximum length of {limit} characters.",
+        "invalid.project_identifier_empty": "❌ Invalid input: Project identifier cannot be empty or whitespace.",
+        "invalid.project_identifier_too_long": "❌ Invalid input: Project identifier exceeds maximum length of {limit} characters.",
+        "invalid.new_project_name_empty": "❌ Invalid input: New project name cannot be empty or whitespace.",
+        "invalid.new_project_name_too_long": "❌ Invalid input: New project name exceeds maximum length of {limit} characters.",
+        # Projects
+        "project.list.empty": "ℹ️ No projects found in your Todoist account.",
+        "project.list.header": "📁 Available Projects (Total: {count}):",
+        "project.list.color_suffix": ", Color: {color}",
+        "project.list.url_line": "{indent}• URL: {url}",
+        "project.list_failed": "❌ Failed to list projects from Todoist. Check server logs for details.",
+        "project.detail.none": "None",
+        "project.detail.no_parent": "None (top-level project)",
+        "project.detail.yes": "Yes",
+        "project.detail.no": "No",
+        "project.detail.not_set": "Not set",
+        "project.detail": (
+            "📁 Project Details (ID: {id})\n"
+            "• Name: {name}\n"
+            "• Color: {color}\n"
+            "• Parent Project ID (parent_id): {parent}\n"
+            "• Favorite: {favorite}\n"
+            "• View Style: {view_style}\n"
+            "• URL: {url}"
+        ),
+        "project.get_failed": "❌ Failed to retrieve project from Todoist (ID: {id}). Check server logs for details.",
+        "project.create_failed": "❌ Failed to create project '{name}' in Todoist. Check server logs for details.",
+        "project.parent_not_found": "⚠️ Parent project not found: '{name}'.",
+        "project.created.parent_line": "\n• Parent Project: '{name}' (ID: {id})",
+        "project.created.color_line": "\n• Color: {color}",
+        "project.created.url_line": "\n• URL: {url}",
+        "project.created": "✅ Project created successfully!\n• ID: {id}\n• Name: {name}{parent_line}{color_line}{url_line}",
+        "project.update.no_fields": "⚠️ No fields to update were specified. Please provide the name or color parameter.",
+        "project.update_failed": "❌ Failed to update project '{name}' in Todoist. Check server logs for details.",
+        "project.update.not_found": "⚠️ Project to update not found: '{name}'.",
+        "project.update.change.name": "Name: '{value}'",
+        "project.update.change.color": "Color: '{value}'",
+        "project.updated": "✅ Project updated successfully (ID: {id})!\nChanges made:\n{changes}",
+        "project.delete_failed": "❌ Failed to delete project '{name}' in Todoist. Check server logs for details.",
+        "project.delete.not_found": "⚠️ Project to delete not found: '{name}'.",
+        "project.deleted": "🗑️ Project deleted successfully: {target}.",
+        "project.delete_unconfirmed": "⚠️ The project could not be deleted: {target}.",
     },
     "tr": {
         # Shared: name resolution
