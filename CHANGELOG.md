@@ -29,8 +29,6 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
     real name instead of the input.
   - A failed lookup (Todoist API error while listing) returns the tool's
     generic error instead of "not found". Only the error type is logged.
-  - The CLI, webhook and sync worker are unchanged: an unknown project name
-    there still falls back to the Inbox.
 - The Todoist MCP server moved from the single-file `todoist_mcp.py` into
   the `plugvan.todoist` package (server, client, limits, resolvers, and one
   tools module per domain). No behavior change: same 22 tools, names,
@@ -55,6 +53,23 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   sections in different projects can't be confused.
 - 9 tests for `update_section` (rename by name/ID, project scoping,
   not-found, empty/too-long input, sanitized error). Suite: 172 → 181.
+
+### Removed
+- **The legacy Bridge surface.** The repository is now only the
+  `plugvan.todoist` MCP server; MCP tools and behavior are unchanged.
+  Removed: the FastAPI webhook server (`app.py`), the webhook client
+  (`send_to_bridge.py`), the standalone CLI (`main.py`), the Google Tasks
+  sync worker (`sync_worker.py`), the shared legacy core (`parser.py`,
+  `models.py`, `config.py`, `todoist_client.py`), the Gemini tool schema
+  (`gemini_tool_schema.json`), the sample tasks file (`tasks_sample.json`),
+  `Dockerfile` / `.dockerignore`, and their tests.
+- The last commit with this code is tagged `legacy-bridge-final`; recover
+  it with `git checkout legacy-bridge-final`.
+- Dropped dependencies: `requests`, `pydantic-settings`, `colorama`,
+  `fastapi`, `uvicorn`, `google-auth`, `google-auth-oauthlib`,
+  `google-auth-httplib2`, `google-api-python-client`, `pytest-asyncio`.
+- `WEBHOOK_SECRET_TOKEN` and `ALLOWED_ORIGINS` are no longer read; only
+  `TODOIST_API_TOKEN` is needed.
 
 ### Fixed
 - MCP clients on Python 3.10–3.12 received indented tool descriptions: the
