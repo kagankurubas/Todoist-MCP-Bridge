@@ -1,11 +1,12 @@
 """
-Tests for the message catalog's missing-key contract.
-A key missing in the selected language must surface as an error, never as a generic
-user-facing failure message.
+Tests for the message catalog: completeness and the missing-key contract.
+Both languages define the same keys with the same placeholders. A key missing in the
+selected language must surface as an error, never as a generic user-facing failure message.
 """
 
 import ast
 import asyncio
+import string
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -17,6 +18,27 @@ from plugvan.todoist.server import mcp
 from tests.todoist.helpers import MockProject, write_call_count
 
 PACKAGE_DIR = Path(__file__).resolve().parents[2] / "plugvan" / "todoist"
+
+
+def _placeholders(template: str) -> set[str]:
+    return {field for _, field, _, _ in string.Formatter().parse(template) if field is not None}
+
+
+def test_catalogs_define_the_same_keys():
+    en, tr = set(CATALOGS["en"]), set(CATALOGS["tr"])
+
+    assert sorted(en - tr) == []
+    assert sorted(tr - en) == []
+
+
+def test_catalog_entries_have_the_same_placeholders_in_every_language():
+    mismatches = [
+        key
+        for key in CATALOGS["en"].keys() & CATALOGS["tr"].keys()
+        if _placeholders(CATALOGS["en"][key]) != _placeholders(CATALOGS["tr"][key])
+    ]
+
+    assert mismatches == []
 
 
 @patch("plugvan.todoist.client.get_api_client")
