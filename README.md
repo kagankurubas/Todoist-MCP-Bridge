@@ -3,11 +3,9 @@
 <p align="center">
   <a href="https://github.com/kagankurubas/plugvan/actions/workflows/ci.yml"><img src="https://github.com/kagankurubas/plugvan/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI" /></a>
   <img src="https://img.shields.io/badge/Python-3.10%2B-blue?logo=python&logoColor=white" alt="Python Version" />
-  <img src="https://img.shields.io/badge/FastAPI-0.110%2B-009688?logo=fastapi&logoColor=white" alt="FastAPI" />
   <img src="https://img.shields.io/badge/MCP-FastMCP-8A2BE2?logo=anthropic&logoColor=white" alt="Model Context Protocol" />
   <img src="https://img.shields.io/badge/Pydantic-v2-e92063?logo=pydantic&logoColor=white" alt="Pydantic" />
   <img src="https://img.shields.io/badge/Todoist_API-v1-e44332?logo=todoist&logoColor=white" alt="Todoist API" />
-  <img src="https://img.shields.io/badge/Google_Tasks-OAuth_2.0-4285F4?logo=google&logoColor=white" alt="Google Tasks API" />
   <img src="https://img.shields.io/badge/License-MIT-green" alt="License" />
 </p>
 
@@ -35,23 +33,10 @@
 flowchart TD
     subgraph Sources["📥 Input Sources"]
         A1["🤖 Claude Desktop (MCP Client via STDIO)"]
-        A2["🤖 LLMs (Gemini, ChatGPT)"]
-        A3["📱 Google Tasks"]
-        A4["⚡ Automations (n8n, Make, Webhooks)"]
-        A5["💻 CLI / JSON Files"]
-    end
-
-    subgraph CoreBridge["🌉 Core Bridge Engine"]
-        B1["🧹 Parser & Cleaner\n(Markdown fences, #Project, p[1-4], @Date)"]
-        B2["🛡️ Pydantic Validation\n(TaskPayload, BatchTaskPayload - Max 50\nparent_id, deadline_date)"]
-        B3["🎯 Smart Project Resolver\n(Case-insensitive project_name ➔ project_id)"]
     end
 
     subgraph Gateways["🚀 Gateways & Interfaces"]
         C1["🤖 FastMCP Server (plugvan.todoist)\n[Task/Project Get/Create/Update/Delete, Section, Label, Comment Tools]"]
-        C2["⚡ FastAPI Server (app.py)\n[Timing-Safe X-Bridge-Token Auth]"]
-        C3["🔄 Sync Worker (sync_worker.py)\n[OAuth 2.0 Auto-Delete]"]
-        C4["🖥️ Standalone CLI (main.py / send_to_bridge.py)"]
     end
 
     subgraph Todoist["✅ Todoist"]
@@ -59,22 +44,7 @@ flowchart TD
     end
 
     A1 <-->|STDIO / JSON-RPC| C1
-    A2 -->|JSON / Tool Calling| B1
-    A3 -->|Raw Task Title & Notes| B1
-    A4 -->|HTTP POST| C2
-    A5 -->|File / CLI String| B1
-
-    B1 --> B2
-    B2 --> B3
-    B3 --> C2
-    B3 --> C3
-    B3 --> C4
-
     C1 -->|Official Python SDK| D
-    C2 -->|REST API v1| D
-    C3 -->|Batch Create| D
-    C3 -.->|Delete Synced Tasks| A3
-    C4 -->|REST API v1| D
 ```
 
 ---
@@ -82,7 +52,7 @@ flowchart TD
 <a name="english"></a>
 ## 🇬🇧 English
 
-Plugvan is primarily a local **Model Context Protocol (MCP)** server: Claude Desktop launches it as a subprocess and talks to it over STDIO, so no web server or deployment is needed. It lets an AI assistant manage Todoist through conversation using smart project resolution, natural language due dates, and strict schema validation. The repository also includes optional tools that share the same validation core: a standalone CLI, a FastAPI webhook service for local automations (n8n, Make), and a Google Tasks sync worker.
+Plugvan is primarily a local **Model Context Protocol (MCP)** server: Claude Desktop launches it as a subprocess and talks to it over STDIO, so no web server or deployment is needed. It lets an AI assistant manage Todoist through conversation using smart project resolution, natural language due dates, and strict schema validation.
 
 ### 🌟 Key Features
 
@@ -92,8 +62,6 @@ Plugvan is primarily a local **Model Context Protocol (MCP)** server: Claude Des
   - **Labels:** `list_labels`, `create_label`, `update_label`, `delete_label`
   - **Comments / Notes:** `add_comment`, `get_comments`
   - **Projects & Hierarchy:** `create_project` (nested subprojects), `get_project`, `update_project`, `delete_project`, `list_projects` (tree view)
-- **🛡️ Pydantic & Batch Validation:** Strict type-safe schema verification with a 50-task maximum batch limit for both dictionary and list payloads.
-- **📱 Google Tasks → Todoist Sync Worker (`sync_worker.py`):** OAuth 2.0 daemon that synchronizes tasks from Google Tasks, parses tags (`#Project`, `p[1-4]`, `@Date`), pushes them to Todoist, and cleans up Google Tasks.
 - **🎯 Smart Name Resolution:** Maps human-readable project, section and label names (case-insensitive, with Turkish/Unicode normalization) to Todoist IDs.
   - **MCP tools:**
     - An unknown name returns an error, and nothing is written.
@@ -102,7 +70,6 @@ Plugvan is primarily a local **Model Context Protocol (MCP)** server: Claude Des
     - `create_task`, `update_task`, `create_project` (parent), `create_section` and `list_sections` also accept a project name that partially matches exactly one project. Their messages show the project's real name.
     - Sections match only by ID or exact name, inside the resolved project.
     - `Inbox` / `Gelen Kutusu` always resolve to the Inbox.
-  - **CLI, webhook and sync worker:** an unknown project name still falls back to the `Inbox`.
 - **📏 Name limits (MCP tools):**
   - Project names: up to 120 characters.
   - Label names: up to 60 characters.
@@ -110,29 +77,13 @@ Plugvan is primarily a local **Model Context Protocol (MCP)** server: Claude Des
   - The number of projects you can have depends on your Todoist plan. See Todoist's official [Usage limits in Todoist](https://www.todoist.com/help/todoist/get-started/usage-limits-in-todoist-e5rcSY) page for the current limits.
   - Name lookup searches only your active projects.
   - Archived projects are not listed, so their names are reported as "not found".
-- **⚡ FastAPI Webhook API (`app.py`):** REST API with timing-attack safe header authentication (`X-Bridge-Token`) and configurable CORS origin filtering.
-- **🧹 Markdown & JSON Extraction:** Automatically strips markdown code fences (````json ... ````) from raw LLM outputs.
-- **💻 Standalone CLI Tools:** Direct execution script (`main.py`) and webhook dispatcher client (`send_to_bridge.py`).
-- **🤖 Gemini Function Calling Ready (`gemini_tool_schema.json`):** Pre-configured JSON schema for Google Gemini tool use.
 
 ### 📁 Project Structure
 
 ```text
 plugvan/
 ├── plugvan/todoist/        # FastMCP server for Claude Desktop (STDIO, python -m plugvan.todoist)
-├── app.py                  # FastAPI Web Application & REST API
-├── send_to_bridge.py       # Standalone CLI client for FastAPI webhook
-├── sync_worker.py          # Google Tasks → Todoist sync worker (OAuth 2.0)
-├── config.py               # Environment variables & Pydantic settings
-├── models.py               # TaskPayload & BatchTaskPayload Pydantic schemas
-├── parser.py               # JSON cleaner and tag extractor
-├── todoist_client.py       # Todoist REST API client with error handling
-├── main.py                 # Direct Todoist CLI runner & table formatter
-├── gemini_tool_schema.json # Gemini Function Calling / Tool Schema
-├── tasks_sample.json       # Sample task template
 ├── tests/                  # Pytest test suite (unit & integration tests)
-├── Dockerfile              # Docker container (runs sync_worker.py by default)
-├── .dockerignore           # Excluded files for Docker build context
 ├── requirements.txt        # Python dependencies
 └── .env.example            # Environment variable template
 ```
@@ -171,18 +122,14 @@ cp .env.example .env
 Edit your `.env` file with your own credentials:
 ```env
 TODOIST_API_TOKEN=your_todoist_api_token_here
-WEBHOOK_SECRET_TOKEN=your_strong_random_secret_token_here
 ```
 
 **How to obtain your credentials:**
 - **`TODOIST_API_TOKEN`**: Log into [Todoist Web](https://todoist.com) ➔ Settings ➔ **Integrations** ➔ **Developer** ➔ Copy your API token.
-- **`WEBHOOK_SECRET_TOKEN`**: Generate a strong random string (e.g. `openssl rand -hex 16`) to secure incoming webhook requests.
 
 > [!CAUTION]
 > **🔒 Security Considerations:**
-> - **Authentication:** Operational endpoints (`/projects`, `/tasks`) are secured via the pre-shared `X-Bridge-Token` header using constant-time verification.
-> - **Network Exposure:** Do **not** expose the FastAPI server directly to the public internet. Run it within a trusted local network, behind a TLS-enabled reverse proxy (e.g. Nginx, Caddy), or over a private VPN (e.g. Tailscale, WireGuard).
-> - **Secret Management:** Keep `.env`, `credentials.json`, and `token.json` private. They are pre-configured in `.gitignore` and must never be committed to Git.
+> - **Secret Management:** Keep `.env` private. It is pre-configured in `.gitignore` and must never be committed to Git.
 
 ---
 
@@ -214,87 +161,10 @@ Integrate Todoist directly into your Claude Desktop application.
 
 ---
 
-#### Method 2: Google Tasks Sync Worker (`sync_worker.py`)
-Automatically reads tasks from Google Tasks, extracts tags (`#Project`, `p[1-4]`, `@Date`), creates them in Todoist, and removes them from Google Tasks.
-
-*(Requires Google Cloud Console OAuth Desktop Client `credentials.json` in the root folder).*
-
-```bash
-# Continuous watcher mode (checks every 15 seconds)
-python sync_worker.py --watch --interval 15
-
-# One-shot synchronization
-python sync_worker.py
-```
-
----
-
-#### Method 3: Standalone CLI (`main.py`)
-Create tasks directly from the terminal without running any background server:
-
-```bash
-# From a JSON file
-python main.py --file tasks_sample.json
-
-# From an inline JSON string
-python main.py --json '[{"content": "Read documentation", "due_string": "today", "priority": 2}]'
-
-# Interactive input (paste JSON and press Ctrl+Z / Enter on Windows, Ctrl+D on Unix)
-python main.py
-```
-
----
-
-#### Method 4: FastAPI Webhook Service (`app.py`)
-Run the bridge as a persistent HTTP REST server:
-
-```bash
-uvicorn app:app --port 8000
-```
-Interactive Swagger Documentation: `http://127.0.0.1:8000/docs`.
-
-**Example cURL Request:**
-```bash
-curl -X POST "http://127.0.0.1:8000/tasks" \
-  -H "Content-Type: application/json" \
-  -H "X-Bridge-Token: your_strong_random_secret_token_here" \
-  -d '[
-    {
-      "content": "Review Pull Requests",
-      "project_name": "Inbox",
-      "due_string": "tomorrow at 10:00",
-      "priority": 3
-    }
-  ]'
-```
-
-**Creating a sub-task with `parent_id`:**
-The optional `parent_id` field turns a task into a sub-task of an existing Todoist task. It must be the real ID of an already-created parent task (create the parent first, then use its returned `id` here):
-```json
-{
-  "content": "Collect stakeholder feedback",
-  "project_name": "Inbox",
-  "due_string": "next monday",
-  "priority": 2,
-  "parent_id": "1234567890"
-}
-```
-See `tasks_sample.json` for a full parent + sub-task example.
-
----
-
-#### Method 5: Webhook Dispatcher Client (`send_to_bridge.py`)
-Send tasks from a JSON file to your running FastAPI webhook server:
-```bash
-python send_to_bridge.py --file tasks_sample.json
-```
-
----
-
 <a name="türkçe"></a>
 ## 🇹🇷 Türkçe
 
-Plugvan, temelde yerel çalışan bir **Model Context Protocol (MCP)** sunucusudur: Claude Desktop onu alt süreç olarak başlatır ve STDIO üzerinden konuşur; web sunucusu veya deploy gerekmez. Yapay zeka asistanının Todoist'i sohbet üzerinden yönetmesini sağlar. Repoda ayrıca aynı doğrulama çekirdeğini kullanan isteğe bağlı araçlar bulunur: bağımsız CLI, yerel otomasyonlar (n8n, Make) için FastAPI webhook servisi ve Google Tasks senkronizasyon servisi.
+Plugvan, temelde yerel çalışan bir **Model Context Protocol (MCP)** sunucusudur: Claude Desktop onu alt süreç olarak başlatır ve STDIO üzerinden konuşur; web sunucusu veya deploy gerekmez. Yapay zeka asistanının Todoist'i sohbet üzerinden yönetmesini sağlar.
 
 ### 🌟 Öne Çıkan Özellikler
 
@@ -304,8 +174,6 @@ Plugvan, temelde yerel çalışan bir **Model Context Protocol (MCP)** sunucusud
   - **Etiketler:** `list_labels`, `create_label`, `update_label`, `delete_label`
   - **Yorumlar & Notlar:** `add_comment`, `get_comments`
   - **Projeler & Hiyerarşi:** `create_project` (alt proje / parent_id), `get_project`, `update_project`, `delete_project`, `list_projects` (ağaç görünümü)
-- **🛡️ Pydantic ile Doğrulama & Toplu İşlem Limiti:** Tekil veya toplu görev verilerinin tiplerini doğrular; tek seferde en fazla 50 görev sınırını hem liste hem sözlük formatında zorunlu kılar.
-- **📱 Google Tasks → Todoist Senkronizasyonu (`sync_worker.py`):** Google Tasks'teki görevleri okur, etiketleri (`#Proje`, `p[1-4]`, `@Tarih`) ayrıştırır, Todoist'e aktarır ve aktarılanları siler.
 - **🎯 Akıllı İsim Eşleme:** Proje, bölüm ve etiket isimlerini büyük/küçük harf duyarsız ve Türkçe karakter uyumlu olarak Todoist ID'lerine eşler.
   - **MCP tool'ları:**
     - Bilinmeyen isim hata döndürür ve hiçbir şey yazılmaz.
@@ -314,7 +182,6 @@ Plugvan, temelde yerel çalışan bir **Model Context Protocol (MCP)** sunucusud
     - `create_task`, `update_task`, `create_project` (üst proje), `create_section` ve `list_sections` yalnızca tek bir projeyle kısmi eşleşen bir proje adını da kabul eder; mesajlar projenin gerçek adını gösterir.
     - Bölümler yalnızca ID veya tam isimle, çözümlenen projenin içinde aranır.
     - `Inbox` / `Gelen Kutusu` her zaman Gelen Kutusu'na çözümlenir.
-  - **CLI, webhook ve sync worker:** bilinmeyen proje adı hâlâ `Gelen Kutusu`na (Inbox) yönlendirilir.
 - **📏 İsim limitleri (MCP tool'ları):**
   - Proje adı: en fazla 120 karakter.
   - Etiket adı: en fazla 60 karakter.
@@ -322,28 +189,13 @@ Plugvan, temelde yerel çalışan bir **Model Context Protocol (MCP)** sunucusud
   - Kullanabileceğiniz proje sayısı Todoist planınıza göre değişir. Güncel limitler için Todoist'in resmi [Usage limits in Todoist](https://www.todoist.com/help/todoist/get-started/usage-limits-in-todoist-e5rcSY) sayfasına bakın.
   - İsim araması yalnızca aktif projeleriniz içinde yapılır.
   - Arşivlenmiş projeler listelenmediği için isimleri "bulunamadı" sayılır.
-- **⚡ FastAPI Webhook API (`app.py`):** Zamanlama saldırılarına korumalı (timing-safe) `X-Bridge-Token` başlık doğrulaması ve yapılandırılabilir CORS köken filtreleme desteği içeren REST servisi.
-- **🧹 Markdown & JSON Ayıklama:** LLM çıktılarındaki markdown formatlı kod bloklarını (````json ... ````) otomatik olarak temizler.
-- **💻 Bağımsız CLI Araçları:** Sunucusuz doğrudan görev ekleme (`main.py`) ve webhook istemcisi (`send_to_bridge.py`).
 
 ### 📁 Proje Yapısı
 
 ```text
 plugvan/
 ├── plugvan/todoist/        # Claude Desktop için FastMCP sunucusu (STDIO, python -m plugvan.todoist)
-├── app.py                  # FastAPI Web Uygulaması ve REST API
-├── send_to_bridge.py       # FastAPI webhook istemcisi (CLI)
-├── sync_worker.py          # Google Tasks → Todoist senkronizasyon servisi
-├── config.py               # Çevre değişkenleri ve Pydantic settings yönetimi
-├── models.py               # TaskPayload ve BatchTaskPayload Pydantic modelleri
-├── parser.py               # JSON temizleyici ve etiket ayrıştırıcı
-├── todoist_client.py       # Hata yönetimi içeren Todoist REST API istemcisi
-├── main.py                 # Doğrudan Todoist CLI çalıştırıcısı ve tablo formatlayıcı
-├── gemini_tool_schema.json # Gemini Function Calling / Tool Şeması
-├── tasks_sample.json       # Örnek görev şablonu
 ├── tests/                  # Pytest test paketi (birim ve entegrasyon testleri)
-├── Dockerfile              # Docker konteyner tanımı (varsayılan: sync_worker.py)
-├── .dockerignore           # Docker derleme bağlamı hariç tutma listesi
 ├── requirements.txt        # Python bağımlılıkları
 └── .env.example            # Çevre değişkeni şablonu
 ```
@@ -379,19 +231,14 @@ cp .env.example .env
 `.env` dosyanızı açıp kendi token ve anahtarlarınızı girin:
 ```env
 TODOIST_API_TOKEN=kendi_todoist_api_tokeniniz
-WEBHOOK_SECRET_TOKEN=guclu_ve_rastgele_bir_gizli_anahtar
-ALLOWED_ORIGINS=*
 ```
 
 **Anahtarlarınızı Alma:**
 - **`TODOIST_API_TOKEN`**: [Todoist Web](https://todoist.com) ➔ Ayarlar ➔ **Entegrasyonlar** ➔ **Geliştirici** ➔ API belirtecinizi kopyalayın.
-- **`WEBHOOK_SECRET_TOKEN`**: Webhook isteklerini korumak için rastgele güçlü bir parola/anahtar belirleyin.
 
 > [!CAUTION]
 > **🔒 Güvenlik Uyarıları:**
-> - **API Kimlik Doğrulaması:** Tüm işlem uç noktaları (`/projects`, `/tasks`), `X-Bridge-Token` başlığı üzerinden iletilen gizli anahtarla zamanlama analizi saldırılarına (timing attacks) karşı korunmaktadır.
-> - **Ağ Güvenliği:** Sunucuyu doğrudan genel internete açık bırakmayınız. Sadece güvenilir bir yerel ağda, TLS/HTTPS destekli bir reverse proxy (ör. Nginx, Caddy) arkasında veya özel bir VPN (ör. Tailscale, WireGuard) üzerinden çalıştırınız.
-> - **Gizli Anahtar Yönetimi:** `.env`, `credentials.json` ve `token.json` dosyaları `.gitignore`'da tanımlıdır; bu dosyaları asla Git deposuna eklemeyin ve kimseyle paylaşmayın.
+> - **Gizli Anahtar Yönetimi:** `.env` dosyası `.gitignore`'da tanımlıdır; bu dosyayı asla Git deposuna eklemeyin ve kimseyle paylaşmayın.
 
 ---
 
@@ -420,80 +267,6 @@ Claude Desktop uygulamanıza Todoist yeteneği kazandırmak için:
    - *"Bugün için tanımlı Todoist görevlerimi listele."*
    - *"Yarın saat 15:00'e 'Proje Raporunu Teslim Et' başlıklı p2 görev ekle."*
    - *"ID'si 6hM2... olan görevi kapat."*
-
----
-
-#### 2. Yöntem: Google Tasks Senkronizasyonu (`sync_worker.py`)
-Google Tasks üzerindeki görevleri okur, etiketleri (`#Proje`, `p[1-4]`, `@Tarih`) ayrıştırır, Todoist'e aktarır ve siler.
-
-*(Google Cloud Console'dan indirilen Masaüstü İstemcisi `credentials.json` dosyasının ana dizinde bulunması gerekir).*
-
-```bash
-# Sürekli izleme modu (15 saniyede bir kontrol eder)
-python sync_worker.py --watch --interval 15
-
-# Tek seferlik senkronizasyon
-python sync_worker.py
-```
-
----
-
-#### 3. Yöntem: Doğrudan CLI ile Görev Ekleme (`main.py`)
-Sunucu çalıştırmadan doğrudan terminalden görev ekler:
-
-```bash
-# JSON dosyasından ekleme
-python main.py --file tasks_sample.json
-
-# Doğrudan JSON string parametresi ile ekleme
-python main.py --json '[{"content": "Kitap oku", "due_string": "today", "priority": 2}]'
-
-# İnteraktif mod (JSON yapıştırıp Windows'ta Ctrl+Z / Enter, Unix'te Ctrl+D)
-python main.py
-```
-
----
-
-#### 4. Yöntem: FastAPI Webhook Sunucusu (`app.py`)
-```bash
-uvicorn app:app --port 8000
-```
-Swagger API Arayüzü: `http://127.0.0.1:8000/docs`.
-
-**Örnek cURL İsteği:**
-```bash
-curl -X POST "http://127.0.0.1:8000/tasks" \
-  -H "Content-Type: application/json" \
-  -H "X-Bridge-Token: guclu_ve_rastgele_bir_gizli_anahtar" \
-  -d '[
-    {
-      "content": "Kod İncelemesi Yap",
-      "project_name": "Inbox",
-      "due_string": "tomorrow at 10:00",
-      "priority": 3
-    }
-  ]'
-```
-
-**`parent_id` ile alt görev (sub-task) oluşturma:**
-Opsiyonel `parent_id` alanı, bir görevi mevcut bir Todoist görevinin alt görevi (sub-task) yapar. Bu alana, önceden oluşturulmuş ana görevin gerçek ID'si girilmelidir (önce ana görevi oluşturun, ardından dönen `id` değerini burada kullanın):
-```json
-{
-  "content": "Paydaş geri bildirimlerini topla",
-  "project_name": "Inbox",
-  "due_string": "next monday",
-  "priority": 2,
-  "parent_id": "1234567890"
-}
-```
-Ana görev + alt görev içeren tam bir örnek için `tasks_sample.json` dosyasına bakın.
-
----
-
-#### 5. Yöntem: Webhook İstemcisi (`send_to_bridge.py`)
-```bash
-python send_to_bridge.py --file tasks_sample.json
-```
 
 ---
 
