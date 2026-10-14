@@ -115,3 +115,10 @@ def pytest_runtest_call(item):
             message = _violation_message(violations)
             violations.clear()
             pytest.fail(message, pytrace=False)
+
+
+@pytest.fixture
+def english_output(monkeypatch):
+    """Selects English output for one test. Opt in per module with
+    pytestmark = pytest.mark.usefixtures("english_output") while the default is still Turkish."""
+    monkeypatch.setenv("PLUGVAN_LANG", "en")

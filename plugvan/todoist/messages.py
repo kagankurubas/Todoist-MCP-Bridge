@@ -13,7 +13,102 @@ class MissingMessageError(Exception):
 
 
 CATALOGS: dict[str, dict[str, str]] = {
-    "en": {},
+    "en": {
+        # Shared: name resolution
+        "ambiguous.project": "⚠️ Multiple projects found for '{query}'; please use the project ID:",
+        "ambiguous.section": "⚠️ Multiple sections found for '{query}'; please use the section ID:",
+        "ambiguous.label": "⚠️ Multiple labels found for '{query}'; please use the label ID:",
+        "inbox.display_name": "Inbox",
+        "inbox.marker": " [Inbox]",
+        "project.not_found": "⚠️ Project not found: '{name}'.",
+        "section.not_found": "⚠️ Section not found: '{name}'.",
+        # Shared: input validation
+        "invalid.task_id_empty": "❌ Invalid input: Task ID cannot be empty or whitespace.",
+        "invalid.task_id_too_long": "❌ Invalid input: Task ID exceeds maximum length of {limit} characters.",
+        "invalid.task_content_empty": "❌ Invalid input: Task content cannot be empty or whitespace.",
+        "invalid.task_content_too_long": "❌ Invalid input: Task content exceeds maximum length of {limit} characters.",
+        "invalid.task_description_too_long": "❌ Invalid input: Task description exceeds maximum length of {limit} characters.",
+        "invalid.project_name_too_long": "❌ Invalid input: Project name exceeds maximum length of {limit} characters.",
+        "invalid.due_string_too_long": "❌ Invalid input: Due date string exceeds maximum length of {limit} characters.",
+        "invalid.priority": "❌ Invalid input: Priority must be an integer between 1 (Normal) and 4 (Urgent).",
+        "invalid.labels_not_list": "❌ Invalid input: Labels must be a list of strings.",
+        "invalid.section_identifier_too_long": "❌ Invalid input: Section identifier exceeds maximum length of {limit} characters.",
+        "invalid.parent_task_id_too_long": "❌ Invalid input: Parent task ID exceeds maximum length of {limit} characters.",
+        "invalid.deadline_date_format": "❌ Invalid input: deadline_date must be in YYYY-MM-DD format (received: '{value}').",
+        "invalid.filter_query_empty": "❌ Invalid input: Filter query cannot be empty or whitespace.",
+        "invalid.filter_query_too_long": "❌ Invalid input: Filter query exceeds maximum length of {limit} characters.",
+        # Tasks
+        "task.deadline_plan_restricted": "❌ The deadline feature is not available on the Todoist Free/Beginner plan — a Pro or Business plan is required (403 Forbidden).",
+        "task.create_failed": "❌ Todoist task creation failed. Check server logs for details.",
+        "task.due_not_specified": "Not specified",
+        "task.created.section_line": "\n• Section: {name} (ID: {id})",
+        "task.created.labels_line": "\n• Labels: {labels}",
+        "task.created.deadline_line": "\n• Deadline: {date}",
+        "task.created": (
+            "✅ Task created successfully!\n"
+            "• ID: {id}\n"
+            "• Title: {content}\n"
+            "• Project: {project}"
+            "{section_line}\n"
+            "• Priority: p{priority}\n"
+            "• Due / Recurrence: {due}"
+            "{deadline_line}"
+            "{labels_line}\n"
+            "• URL: {url}"
+        ),
+        "task.list.empty": "ℹ️ No open tasks match the filter '{query}'.",
+        "task.priority.4": "🔴 p4 (Urgent)",
+        "task.priority.3": "🟠 p3 (High)",
+        "task.priority.2": "🔵 p2 (Medium)",
+        "task.priority.1": "⚪ p1 (Normal)",
+        "task.list.header": "📋 Open Tasks (Filter: '{query}', Total: {count}):",
+        "task.list.no_due": "No due date",
+        "task.list.priority_line": "   • Priority: {priority}",
+        "task.list.due_line": "   • Due: {due}",
+        "task.list.description_line": "   • Description: {description}",
+        "task.list_failed": "❌ Failed to retrieve tasks from Todoist. Check server logs for details.",
+        "task.detail.not_set": "Not set",
+        "task.detail.none": "None",
+        "task.detail.no_parent": "None (top-level task)",
+        "task.detail": (
+            "📄 Task Details (ID: {id})\n"
+            "• Title: {content}\n"
+            "• Description: {description}\n"
+            "• Project ID: {project_id}\n"
+            "• Section ID: {section}\n"
+            "• Parent Task ID (parent_id): {parent}\n"
+            "• Priority: p{priority}\n"
+            "• Due / Recurrence: {due}\n"
+            "• Labels: {labels}\n"
+            "• URL: {url}"
+        ),
+        "task.get_failed": "❌ Failed to retrieve task from Todoist (ID: {id}). Check server logs for details.",
+        "task.completed": "✅ Task completed successfully (ID: {id}).",
+        "task.complete_unconfirmed": "⚠️ The task could not be completed, or it may already be completed (ID: {id}).",
+        "task.complete_failed": "❌ Failed to complete task in Todoist (ID: {id}). Check server logs for details.",
+        "task.reopened": "🔄 Task reopened successfully (ID: {id}).",
+        "task.reopen_unconfirmed": "⚠️ The task could not be reopened, or it may already be open (ID: {id}).",
+        "task.reopen_failed": "❌ Failed to reopen task in Todoist (ID: {id}). Check server logs for details.",
+        "task.update.no_fields": "⚠️ No fields to update were specified. Please provide at least one parameter (content, description, project_name, due_string, priority, labels, section_name_or_id, parent_id, deadline_date).",
+        "task.update_failed": "❌ Failed to update task in Todoist (ID: {id}). Check server logs for details.",
+        "task.update.target_project_not_found": "⚠️ Target project not found: '{name}'.",
+        "task.update.target_section_not_found": "⚠️ Target section not found: '{name}'.",
+        "task.update.change.content": "Title: '{value}'",
+        "task.update.change.description": "Description: '{value}'",
+        "task.update.change.due": "Due: '{value}'",
+        "task.update.change.priority": "Priority: p{value}",
+        "task.update.change.labels": "Labels: {value}",
+        "task.update.change.labels_cleared": "Cleared",
+        "task.update.change.deadline": "Deadline: '{value}'",
+        "task.update.change.project": "Target Project: '{name}' (ID: {id})",
+        "task.update.change.section": "Target Section: '{name}' (ID: {id})",
+        "task.update.change.parent": "Parent Task (parent_id): '{id}'",
+        "task.update.change.parent_removed": "Parent Task: Removed (task moved to the top level)",
+        "task.updated": "✅ Task updated successfully (ID: {id})!\nChanges made:\n{changes}",
+        "task.deleted": "🗑️ Task permanently deleted (ID: {id}).",
+        "task.delete_unconfirmed": "⚠️ The task could not be deleted (ID: {id}). It may already be deleted or not exist.",
+        "task.delete_failed": "❌ Failed to delete task in Todoist (ID: {id}). Check server logs for details.",
+    },
     "tr": {
         # Shared: name resolution
         "ambiguous.project": "⚠️ '{query}' için birden fazla proje bulundu; lütfen proje ID'sini kullanın:",

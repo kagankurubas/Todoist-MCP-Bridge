@@ -32,6 +32,8 @@ from tests.todoist.helpers import (
     write_call_count,
 )
 
+pytestmark = pytest.mark.usefixtures("english_output")
+
 
 # =====================================================================
 # CREATE_TASK TESTS
@@ -65,13 +67,13 @@ def test_create_task_success(mock_get_client):
         labels=["@kitap", "odak"],
     )
 
-    assert "✅ Görev başarıyla oluşturuldu!" in result
+    assert "✅ Task created successfully!" in result
     assert "ID: task_001" in result
-    assert "Başlık: Read 10 pages" in result
-    assert "Proje: Odak & Gelişim" in result
-    assert "Bölüm: Acil İşler (ID: sec_200)" in result
-    assert "Öncelik: p2" in result
-    assert "Etiketler: @kitap, @odak" in result
+    assert "Title: Read 10 pages" in result
+    assert "Project: Odak & Gelişim" in result
+    assert "Section: Acil İşler (ID: sec_200)" in result
+    assert "Priority: p2" in result
+    assert "Labels: @kitap, @odak" in result
     mock_api.add_task.assert_called_once_with(
         content="Read 10 pages",
         description="Daily habit",
@@ -96,7 +98,7 @@ def test_create_task_section_not_found(mock_get_client):
         project_name="İş",
         section_name_or_id="Olmayan Bölüm",
     )
-    assert "⚠️ Belirtilen bölüm bulunamadı: 'Olmayan Bölüm'." in result
+    assert "⚠️ Section not found: 'Olmayan Bölüm'." in result
 
 
 @patch("plugvan.todoist.client.get_api_client")
@@ -113,7 +115,7 @@ def test_create_task_inbox_default(mock_get_client):
     )
 
     result = create_task(content="General Task", project_name="Gelen Kutusu")
-    assert "✅ Görev başarıyla oluşturuldu!" in result
+    assert "✅ Task created successfully!" in result
     assert "ID: task_002" in result
     mock_api.add_task.assert_called_once_with(
         content="General Task",
@@ -139,7 +141,7 @@ def test_create_task_with_parent_id(mock_get_client):
 
     result = create_task(content="Alt görev", parent_id="task_parent_999")
 
-    assert "✅ Görev başarıyla oluşturuldu!" in result
+    assert "✅ Task created successfully!" in result
     mock_api.add_task.assert_called_once_with(
         content="Alt görev",
         description=None,
@@ -184,8 +186,8 @@ def test_create_task_with_deadline_date(mock_get_client):
 
     result = create_task(content="Son teslimli görev", deadline_date="2026-09-01")
 
-    assert "✅ Görev başarıyla oluşturuldu!" in result
-    assert "Son Teslim Tarihi (Deadline): 2026-09-01" in result
+    assert "✅ Task created successfully!" in result
+    assert "Deadline: 2026-09-01" in result
     mock_api.add_task.assert_called_once_with(
         content="Son teslimli görev",
         description=None,
@@ -241,9 +243,9 @@ def test_create_task_due_string_and_deadline_date_together(mock_get_client):
         deadline_date="2026-09-01",
     )
 
-    assert "✅ Görev başarıyla oluşturuldu!" in result
-    assert "Tarih / Tekrar: tomorrow at 10:00" in result
-    assert "Son Teslim Tarihi (Deadline): 2026-09-01" in result
+    assert "✅ Task created successfully!" in result
+    assert "Due / Recurrence: tomorrow at 10:00" in result
+    assert "Deadline: 2026-09-01" in result
     mock_api.add_task.assert_called_once_with(
         content="Hem tarihli hem son teslimli görev",
         description=None,
@@ -267,8 +269,8 @@ def test_create_task_deadline_date_403_reports_plan_restriction(mock_get_client)
     result = create_task(content="Son teslimli görev", deadline_date="2026-09-01")
 
     assert result == (
-        "❌ Deadline özelliği Todoist Free/Beginner planında desteklenmiyor "
-        "— Pro veya Business plan gerekiyor (403 Forbidden)."
+        "❌ The deadline feature is not available on the Todoist Free/Beginner plan "
+        "— a Pro or Business plan is required (403 Forbidden)."
     )
 
 
@@ -360,14 +362,14 @@ def test_list_tasks_success(mock_get_client):
     mock_api.filter_tasks.return_value = [[task1, task2]]
 
     result = list_tasks(filter_query="today")
-    assert "📋 Açık Görevler (Filtre: 'today', Toplam: 2):" in result
+    assert "📋 Open Tasks (Filter: 'today', Total: 2):" in result
     assert "[t1] First task [@acil]" in result
-    assert "🔴 p4 (Çok Acil)" in result
-    assert "Tarih: today" in result
-    assert "Açıklama: Note 1" in result
+    assert "🔴 p4 (Urgent)" in result
+    assert "Due: today" in result
+    assert "Description: Note 1" in result
     assert "[t2] Second task" in result
     assert "⚪ p1 (Normal)" in result
-    assert "Tarih: Tarih yok" in result
+    assert "Due: No due date" in result
 
 
 @patch("plugvan.todoist.client.get_api_client")
@@ -377,7 +379,7 @@ def test_list_tasks_empty_result(mock_get_client):
     mock_api.filter_tasks.return_value = [[]]
 
     result = list_tasks(filter_query="overdue")
-    assert "ℹ️ 'overdue' filtresine uygun açık görev bulunamadı." in result
+    assert "ℹ️ No open tasks match the filter 'overdue'." in result
 
 
 def test_list_tasks_empty_filter():
@@ -429,15 +431,15 @@ def test_get_task_success(mock_get_client):
 
     result = get_task(task_id="task_777")
 
-    assert "📄 Görev Detayları (ID: task_777)" in result
-    assert "Başlık: Sub-task example" in result
-    assert "Açıklama: Details here" in result
-    assert "Proje ID: proj_20" in result
-    assert "Bölüm ID: sec_10" in result
-    assert "Üst Görev ID (parent_id): task_parent_5" in result
-    assert "Öncelik: p3" in result
-    assert "Tarih / Tekrar: tomorrow at 09:00" in result
-    assert "Etiketler: @work, @urgent" in result
+    assert "📄 Task Details (ID: task_777)" in result
+    assert "Title: Sub-task example" in result
+    assert "Description: Details here" in result
+    assert "Project ID: proj_20" in result
+    assert "Section ID: sec_10" in result
+    assert "Parent Task ID (parent_id): task_parent_5" in result
+    assert "Priority: p3" in result
+    assert "Due / Recurrence: tomorrow at 09:00" in result
+    assert "Labels: @work, @urgent" in result
     mock_api.get_task.assert_called_once_with(task_id="task_777")
 
 
@@ -452,10 +454,10 @@ def test_get_task_without_parent_shows_top_level(mock_get_client):
     )
 
     result = get_task(task_id="task_888")
-    assert "Üst Görev ID (parent_id): Yok (üst seviye görev)" in result
-    assert "Bölüm ID: Yok" in result
-    assert "Açıklama: Yok" in result
-    assert "Etiketler: Yok" in result
+    assert "Parent Task ID (parent_id): None (top-level task)" in result
+    assert "Section ID: None" in result
+    assert "Description: None" in result
+    assert "Labels: None" in result
 
 
 def test_get_task_empty_id():
@@ -495,7 +497,7 @@ def test_complete_task_success(mock_get_client):
     mock_api.complete_task.return_value = True
 
     result = complete_task(task_id="  task_abc123  ")
-    assert "✅ Görev başarıyla tamamlandı (ID: task_abc123)." in result
+    assert "✅ Task completed successfully (ID: task_abc123)." in result
     mock_api.complete_task.assert_called_once_with(task_id="task_abc123")
 
 
@@ -506,7 +508,7 @@ def test_complete_task_unsuccessful(mock_get_client):
     mock_api.complete_task.return_value = False
 
     result = complete_task(task_id="task_not_found")
-    assert "⚠️ Görev tamamlanamadı veya zaten tamamlanmış olabilir (ID: task_not_found)." in result
+    assert "⚠️ The task could not be completed, or it may already be completed (ID: task_not_found)." in result
 
 
 def test_complete_task_empty_id():
@@ -543,7 +545,7 @@ def test_reopen_task_success(mock_get_client):
     mock_api.uncomplete_task.return_value = True
 
     result = reopen_task(task_id="  task_reopen_1  ")
-    assert "🔄 Görev başarıyla yeniden açıldı (ID: task_reopen_1)." in result
+    assert "🔄 Task reopened successfully (ID: task_reopen_1)." in result
     mock_api.uncomplete_task.assert_called_once_with(task_id="task_reopen_1")
 
 
@@ -554,7 +556,7 @@ def test_reopen_task_unsuccessful(mock_get_client):
     mock_api.uncomplete_task.return_value = False
 
     result = reopen_task(task_id="task_already_active")
-    assert "⚠️ Görev yeniden açılamadı veya zaten açık olabilir (ID: task_already_active)." in result
+    assert "⚠️ The task could not be reopened, or it may already be open (ID: task_already_active)." in result
 
 
 def test_reopen_task_empty_id():
@@ -597,14 +599,14 @@ def test_update_task_success(mock_get_client):
         labels=["@önemli", "proje"],
     )
 
-    assert "✅ Görev başarıyla güncellendi (ID: task_123)!" in result
-    assert "Başlık: 'Yeni Başlık'" in result
-    assert "Açıklama: 'Yeni Açıklama'" in result
-    assert "Tarih: 'yarın 15:00'" in result
-    assert "Öncelik: p3" in result
-    assert "Etiketler: @önemli, @proje" in result
-    assert "Hedef Proje: 'İş' (ID: proj_99)" in result
-    assert "Hedef Bölüm: 'Tamamlananlar' (ID: sec_55)" in result
+    assert "✅ Task updated successfully (ID: task_123)!" in result
+    assert "Title: 'Yeni Başlık'" in result
+    assert "Description: 'Yeni Açıklama'" in result
+    assert "Due: 'yarın 15:00'" in result
+    assert "Priority: p3" in result
+    assert "Labels: @önemli, @proje" in result
+    assert "Target Project: 'İş' (ID: proj_99)" in result
+    assert "Target Section: 'Tamamlananlar' (ID: sec_55)" in result
 
     mock_api.update_task.assert_called_once_with(
         task_id="task_123",
@@ -619,7 +621,7 @@ def test_update_task_success(mock_get_client):
 
 def test_update_task_no_fields_provided():
     result = update_task(task_id="task_123")
-    assert "⚠️ Güncellenecek hiçbir alan belirtilmedi" in result
+    assert "⚠️ No fields to update were specified" in result
 
 
 def test_update_task_invalid_priority():
@@ -656,8 +658,8 @@ def test_update_task_sets_parent_id(mock_get_client):
 
     result = update_task(task_id="task_child", parent_id="task_parent_1")
 
-    assert "✅ Görev başarıyla güncellendi (ID: task_child)!" in result
-    assert "Üst Görev (parent_id): 'task_parent_1'" in result
+    assert "✅ Task updated successfully (ID: task_child)!" in result
+    assert "Parent Task (parent_id): 'task_parent_1'" in result
     mock_api.get_task.assert_not_called()
     mock_api.update_task.assert_not_called()
     mock_api.move_task.assert_called_once_with(task_id="task_child", parent_id="task_parent_1")
@@ -674,8 +676,8 @@ def test_update_task_unparent_with_empty_string(mock_get_client):
 
     result = update_task(task_id="task_child", parent_id="")
 
-    assert "✅ Görev başarıyla güncellendi (ID: task_child)!" in result
-    assert "Üst Görev: Kaldırıldı (görev üst seviyeye taşındı)" in result
+    assert "✅ Task updated successfully (ID: task_child)!" in result
+    assert "Parent Task: Removed (task moved to the top level)" in result
     mock_api.get_task.assert_called_once_with(task_id="task_child")
     mock_api.move_task.assert_called_once_with(task_id="task_child", project_id="proj_999")
 
@@ -691,8 +693,8 @@ def test_update_task_unparent_with_project_name_skips_current_project_lookup(moc
 
     result = update_task(task_id="task_child", project_name="Kişisel", parent_id="")
 
-    assert "Hedef Proje: 'Kişisel' (ID: proj_42)" in result
-    assert "Üst Görev: Kaldırıldı (görev üst seviyeye taşındı)" in result
+    assert "Target Project: 'Kişisel' (ID: proj_42)" in result
+    assert "Parent Task: Removed (task moved to the top level)" in result
     mock_api.get_task.assert_not_called()
     mock_api.move_task.assert_called_once_with(task_id="task_child", project_id="proj_42")
 
@@ -705,8 +707,8 @@ def test_update_task_with_deadline_date(mock_get_client):
 
     result = update_task(task_id="task_123", deadline_date="2026-09-01")
 
-    assert "✅ Görev başarıyla güncellendi (ID: task_123)!" in result
-    assert "Son Teslim Tarihi (Deadline): '2026-09-01'" in result
+    assert "✅ Task updated successfully (ID: task_123)!" in result
+    assert "Deadline: '2026-09-01'" in result
     mock_api.update_task.assert_called_once_with(task_id="task_123", deadline_date=date(2026, 9, 1))
 
 
@@ -740,9 +742,9 @@ def test_update_task_due_string_and_deadline_date_together(mock_get_client):
         deadline_date="2026-09-01",
     )
 
-    assert "✅ Görev başarıyla güncellendi (ID: task_123)!" in result
-    assert "Tarih: 'tomorrow at 10:00'" in result
-    assert "Son Teslim Tarihi (Deadline): '2026-09-01'" in result
+    assert "✅ Task updated successfully (ID: task_123)!" in result
+    assert "Due: 'tomorrow at 10:00'" in result
+    assert "Deadline: '2026-09-01'" in result
     mock_api.update_task.assert_called_once_with(
         task_id="task_123",
         due_string="tomorrow at 10:00",
@@ -761,8 +763,8 @@ def test_update_task_deadline_date_403_reports_plan_restriction(mock_get_client)
     result = update_task(task_id="task_123", deadline_date="2026-09-01")
 
     assert result == (
-        "❌ Deadline özelliği Todoist Free/Beginner planında desteklenmiyor "
-        "— Pro veya Business plan gerekiyor (403 Forbidden)."
+        "❌ The deadline feature is not available on the Todoist Free/Beginner plan "
+        "— a Pro or Business plan is required (403 Forbidden)."
     )
 
 
@@ -790,7 +792,7 @@ def test_delete_task_success(mock_get_client):
     mock_api.delete_task.return_value = True
 
     result = delete_task(task_id="task_to_del")
-    assert "🗑️ Görev kalıcı olarak silindi (ID: task_to_del)." in result
+    assert "🗑️ Task permanently deleted (ID: task_to_del)." in result
     mock_api.delete_task.assert_called_once_with(task_id="task_to_del")
 
 
@@ -801,7 +803,7 @@ def test_delete_task_unsuccessful(mock_get_client):
     mock_api.delete_task.return_value = False
 
     result = delete_task(task_id="task_missing")
-    assert "⚠️ Görev silinemedi (ID: task_missing)." in result
+    assert "⚠️ The task could not be deleted (ID: task_missing)." in result
 
 
 def test_delete_task_empty_id():
@@ -840,7 +842,7 @@ def test_create_task_unknown_project_creates_nothing(mock_get_client):
 
     result = create_task(content="X", project_name="Wrok")
 
-    assert result == "⚠️ Belirtilen proje bulunamadı: 'Wrok'."
+    assert result == "⚠️ Project not found: 'Wrok'."
     mock_api.add_task.assert_not_called()
 
 
@@ -852,7 +854,7 @@ def test_update_task_unknown_project_writes_nothing(mock_get_client):
 
     result = update_task(task_id="task_1", content="x", project_name="Olmayan Proje")
 
-    assert result == "⚠️ Hedef proje bulunamadı: 'Olmayan Proje'."
+    assert result == "⚠️ Target project not found: 'Olmayan Proje'."
     assert write_call_count(mock_api) == 0
 
 
@@ -867,7 +869,7 @@ def test_create_task_unresolved_project_does_not_use_section_from_other_project(
 
     result = create_task(content="X", project_name="Wrok", section_name_or_id="Backlog")
 
-    assert result == "⚠️ Belirtilen proje bulunamadı: 'Wrok'."
+    assert result == "⚠️ Project not found: 'Wrok'."
     mock_api.add_task.assert_not_called()
     mock_api.get_sections.assert_not_called()
 
@@ -880,7 +882,7 @@ def test_create_task_ambiguous_project_creates_nothing(mock_get_client):
     result = create_task(content="X", project_name="Proje")
 
     assert result == (
-        "⚠️ 'Proje' için birden fazla proje bulundu; lütfen proje ID'sini kullanın:\n"
+        "⚠️ Multiple projects found for 'Proje'; please use the project ID:\n"
         "• Proje A (p1)\n"
         "• Proje B (p2)"
     )
@@ -894,8 +896,8 @@ def test_create_task_unique_partial_project_shows_resolved_name(mock_get_client)
 
     result = create_task(content="X", project_name="odak")
 
-    assert "• Proje: Odak & Gelişim" in result
-    assert "• Proje: odak" not in result
+    assert "• Project: Odak & Gelişim" in result
+    assert "• Project: odak" not in result
     assert mock_api.add_task.call_args.kwargs["project_id"] == "p_odak"
 
 
@@ -907,8 +909,8 @@ def test_create_task_inbox_aliases_use_listed_inbox(mock_get_client, alias):
 
     result = create_task(content="X", project_name=alias)
 
-    assert "✅ Görev başarıyla oluşturuldu!" in result
-    assert "• Proje: Inbox" in result
+    assert "✅ Task created successfully!" in result
+    assert "• Project: Inbox" in result
     assert mock_api.add_task.call_args.kwargs["project_id"] == "inbox_1"
 
 
@@ -919,7 +921,7 @@ def test_create_task_inbox_alias_without_listed_inbox_omits_project_id(mock_get_
 
     result = create_task(content="X", project_name="Inbox")
 
-    assert "• Proje: Gelen Kutusu" in result
+    assert "• Project: Inbox" in result
     assert mock_api.add_task.call_args.kwargs["project_id"] is None
 
 
@@ -933,7 +935,7 @@ def test_create_task_section_is_searched_only_in_resolved_project(mock_get_clien
 
     result = create_task(content="X", project_name="Ev", section_name_or_id="Backlog")
 
-    assert "• Bölüm: Backlog (ID: sec_2)" in result
+    assert "• Section: Backlog (ID: sec_2)" in result
     mock_api.get_sections.assert_called_once_with(project_id="p2")
     assert mock_api.add_task.call_args.kwargs["section_id"] == "sec_2"
 
@@ -948,7 +950,7 @@ def test_create_task_partial_section_name_is_not_found(mock_get_client):
 
     result = create_task(content="X", project_name="Yazılım", section_name_or_id="Back")
 
-    assert result == "⚠️ Belirtilen bölüm bulunamadı: 'Back'."
+    assert result == "⚠️ Section not found: 'Back'."
     assert write_call_count(mock_api) == 0
 
 
@@ -962,7 +964,7 @@ def test_create_task_ambiguous_section_creates_nothing(mock_get_client):
 
     result = create_task(content="X", project_name="Yazılım", section_name_or_id="Backlog")
 
-    assert result.startswith("⚠️ 'Backlog' için birden fazla bölüm bulundu; lütfen bölüm ID'sini kullanın:")
+    assert result.startswith("⚠️ Multiple sections found for 'Backlog'; please use the section ID:")
     assert write_call_count(mock_api) == 0
 
 
@@ -976,7 +978,7 @@ def test_create_task_default_project_scopes_section_to_inbox(mock_get_client):
 
     result = create_task(content="X", section_name_or_id="Backlog")
 
-    assert "• Bölüm: Backlog (ID: sec_in)" in result
+    assert "• Section: Backlog (ID: sec_in)" in result
     assert mock_api.add_task.call_args.kwargs["project_id"] == "inbox_1"
     assert mock_api.add_task.call_args.kwargs["section_id"] == "sec_in"
 
@@ -991,7 +993,7 @@ def test_create_task_default_project_without_listed_inbox_section_not_found(mock
 
     result = create_task(content="X", section_name_or_id="Backlog")
 
-    assert result == "⚠️ Belirtilen bölüm bulunamadı: 'Backlog'."
+    assert result == "⚠️ Section not found: 'Backlog'."
     mock_api.get_sections.assert_not_called()
     assert write_call_count(mock_api) == 0
 
@@ -1029,7 +1031,7 @@ def test_update_task_ambiguous_project_writes_nothing(mock_get_client):
 
     result = update_task(task_id="task_1", content="x", project_name="Proje")
 
-    assert result.startswith("⚠️ 'Proje' için birden fazla proje bulundu; lütfen proje ID'sini kullanın:")
+    assert result.startswith("⚠️ Multiple projects found for 'Proje'; please use the project ID:")
     assert write_call_count(mock_api) == 0
 
 
@@ -1040,7 +1042,7 @@ def test_update_task_unique_partial_project_shows_resolved_name(mock_get_client)
 
     result = update_task(task_id="task_1", project_name="odak")
 
-    assert "Hedef Proje: 'Odak & Gelişim' (ID: p_odak)" in result
+    assert "Target Project: 'Odak & Gelişim' (ID: p_odak)" in result
     mock_api.move_task.assert_called_once_with(task_id="task_1", project_id="p_odak")
 
 
@@ -1054,7 +1056,7 @@ def test_update_task_section_without_project_is_scoped_to_current_project(mock_g
 
     result = update_task(task_id="task_1", section_name_or_id="Backlog")
 
-    assert "Hedef Bölüm: 'Backlog' (ID: sec_2)" in result
+    assert "Target Section: 'Backlog' (ID: sec_2)" in result
     mock_api.get_task.assert_called_once_with(task_id="task_1")
     mock_api.get_sections.assert_called_once_with(project_id="p2")
     mock_api.move_task.assert_called_once_with(task_id="task_1", section_id="sec_2")
@@ -1070,7 +1072,7 @@ def test_update_task_section_not_found_writes_nothing(mock_get_client):
 
     result = update_task(task_id="task_1", content="x", project_name="Yazılım", section_name_or_id="Back")
 
-    assert result == "⚠️ Hedef bölüm bulunamadı: 'Back'."
+    assert result == "⚠️ Target section not found: 'Back'."
     assert write_call_count(mock_api) == 0
 
 
@@ -1082,7 +1084,7 @@ def test_update_task_inbox_alias_without_listed_inbox_writes_nothing(mock_get_cl
 
     result = update_task(task_id="task_1", content="x", project_name="Inbox")
 
-    assert result == "⚠️ Hedef proje bulunamadı: 'Inbox'."
+    assert result == "⚠️ Target project not found: 'Inbox'."
     assert write_call_count(mock_api) == 0
 
 
