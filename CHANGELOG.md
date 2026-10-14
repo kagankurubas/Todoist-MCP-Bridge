@@ -5,6 +5,20 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Changed
+- **Breaking: tool results are now in English by default (#37).**
+  - Every MCP tool result and error message now defaults to English. The
+    new optional `PLUGVAN_LANG` environment variable selects the language:
+    `en` (default) or `tr`. An unsupported value falls back to English and
+    is logged once.
+  - **Migration:** to keep the previous Turkish output, set
+    `PLUGVAN_LANG=tr` in `.env` or in the `env` block of the Claude Desktop
+    config, then restart Claude Desktop. With `PLUGVAN_LANG=tr` the tool
+    results are the same as before.
+  - Tool descriptions and logs are always English, in both languages.
+  - Tool surface: `create_task`'s `project_name` default is now `"Inbox"`
+    (was `"Gelen Kutusu"`); a task without a project still goes to the
+    Inbox. The `parent_id` description is now English, and the
+    `project_name` description and the tool description say `'Inbox'`.
 - **Breaking: safer name resolution in the MCP tools (#9).**
   - `delete_project`, `update_project`, `delete_section`, `update_section`,
     `delete_label` and `update_label` no longer use partial matching or the
