@@ -205,6 +205,15 @@ CATALOGS: dict[str, dict[str, str]] = {
         "label.display.named": "'@{name}' (ID: {id})",
         "label.deleted": "🗑️ Etiket başarıyla silindi: {target}.",
         "label.delete_unconfirmed": "⚠️ Etiket silinemedi: {target}.",
+        # Comments
+        "invalid.comment_content_empty": "❌ Invalid input: Comment content cannot be empty or whitespace.",
+        "invalid.comment_content_too_long": "❌ Invalid input: Comment content exceeds maximum length of {limit} characters.",
+        "comment.added.posted_line": "\n• Tarih: {posted_at}",
+        "comment.added": "💬 Yorum başarıyla eklendi!\n• Yorum ID: {id}\n• Görev ID: {task_id}\n• İçerik: {content}{posted_line}",
+        "comment.add_failed": "❌ Failed to add comment to task (ID: {task_id}) in Todoist. Check server logs for details.",
+        "comment.list.empty": "ℹ️ Göreve ait (ID: {task_id}) herhangi bir yorum veya not bulunamadı.",
+        "comment.list.header": "💬 Görev Yorumları (Görev ID: {task_id}, Toplam: {count}):",
+        "comment.list_failed": "❌ Failed to retrieve comments for task (ID: {task_id}) from Todoist. Check server logs for details.",
     },
 }
 

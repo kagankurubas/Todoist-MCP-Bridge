@@ -10,7 +10,7 @@ from plugvan.todoist.limits import (
     MAX_TASK_ID_LENGTH,
     MAX_COMMENT_LENGTH,
 )
-from plugvan.todoist.messages import MissingMessageError
+from plugvan.todoist.messages import MissingMessageError, message
 
 logger = logging.getLogger("todoist_mcp")
 
@@ -41,28 +41,24 @@ def add_comment(
     """
     clean_task_id = str(task_id).strip() if task_id is not None else ""
     if not clean_task_id:
-        return "❌ Invalid input: Task ID cannot be empty or whitespace."
+        return message("invalid.task_id_empty")
     if len(clean_task_id) > MAX_TASK_ID_LENGTH:
-        return f"❌ Invalid input: Task ID exceeds maximum length of {MAX_TASK_ID_LENGTH} characters."
+        return message("invalid.task_id_too_long", limit=MAX_TASK_ID_LENGTH)
 
     clean_content = content.strip() if isinstance(content, str) else ""
     if not clean_content:
-        return "❌ Invalid input: Comment content cannot be empty or whitespace."
+        return message("invalid.comment_content_empty")
     if len(clean_content) > MAX_COMMENT_LENGTH:
-        return f"❌ Invalid input: Comment content exceeds maximum length of {MAX_COMMENT_LENGTH} characters."
+        return message("invalid.comment_content_too_long", limit=MAX_COMMENT_LENGTH)
 
     try:
         api = client.get_api_client()
         comment = api.add_comment(content=clean_content, task_id=clean_task_id)
 
-        posted_str = f"\n• Tarih: {comment.posted_at}" if getattr(comment, "posted_at", None) else ""
+        posted_str = message("comment.added.posted_line", posted_at=comment.posted_at) if getattr(comment, "posted_at", None) else ""
 
-        return (
-            f"💬 Yorum başarıyla eklendi!\n"
-            f"• Yorum ID: {comment.id}\n"
-            f"• Görev ID: {clean_task_id}\n"
-            f"• İçerik: {comment.content}"
-            f"{posted_str}"
+        return message(
+            "comment.added", id=comment.id, task_id=clean_task_id, content=comment.content, posted_line=posted_str
         )
     except MissingMessageError:
         raise
@@ -73,7 +69,7 @@ def add_comment(
             type(e).__name__,
             exc_info=False,
         )
-        return f"❌ Failed to add comment to task (ID: {clean_task_id}) in Todoist. Check server logs for details."
+        return message("comment.add_failed", task_id=clean_task_id)
 
 
 def get_comments(
@@ -93,9 +89,9 @@ def get_comments(
     """
     clean_task_id = str(task_id).strip() if task_id is not None else ""
     if not clean_task_id:
-        return "❌ Invalid input: Task ID cannot be empty or whitespace."
+        return message("invalid.task_id_empty")
     if len(clean_task_id) > MAX_TASK_ID_LENGTH:
-        return f"❌ Invalid input: Task ID exceeds maximum length of {MAX_TASK_ID_LENGTH} characters."
+        return message("invalid.task_id_too_long", limit=MAX_TASK_ID_LENGTH)
 
     try:
         api = client.get_api_client()
@@ -104,9 +100,9 @@ def get_comments(
             comments.extend(batch)
 
         if not comments:
-            return f"ℹ️ Göreve ait (ID: {clean_task_id}) herhangi bir yorum veya not bulunamadı."
+            return message("comment.list.empty", task_id=clean_task_id)
 
-        lines = [f"💬 Görev Yorumları (Görev ID: {clean_task_id}, Toplam: {len(comments)}):", ""]
+        lines = [message("comment.list.header", task_id=clean_task_id, count=len(comments)), ""]
         for idx, comment in enumerate(comments, start=1):
             posted = f" [{comment.posted_at}]" if getattr(comment, "posted_at", None) else ""
             lines.append(f"{idx}. [{comment.id}]{posted} {comment.content}")
@@ -121,4 +117,4 @@ def get_comments(
             type(e).__name__,
             exc_info=False,
         )
-        return f"❌ Failed to retrieve comments for task (ID: {clean_task_id}) from Todoist. Check server logs for details."
+        return message("comment.list_failed", task_id=clean_task_id)
