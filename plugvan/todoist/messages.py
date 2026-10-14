@@ -109,6 +109,56 @@ CATALOGS: dict[str, dict[str, str]] = {
         "task.deleted": "🗑️ Görev kalıcı olarak silindi (ID: {id}).",
         "task.delete_unconfirmed": "⚠️ Görev silinemedi (ID: {id}). Görev zaten silinmiş veya bulunamıyor olabilir.",
         "task.delete_failed": "❌ Failed to delete task in Todoist (ID: {id}). Check server logs for details.",
+        # Shared: target display in delete messages
+        "display.named": "'{name}' (ID: {id})",
+        "display.id_only": "ID: {id}",
+        # Shared: input validation (projects)
+        "invalid.project_id_empty": "❌ Invalid input: Project ID cannot be empty or whitespace.",
+        "invalid.project_id_too_long": "❌ Invalid input: Project ID exceeds maximum length of {limit} characters.",
+        "invalid.project_name_empty": "❌ Invalid input: Project name cannot be empty or whitespace.",
+        "invalid.parent_project_identifier_too_long": "❌ Invalid input: Parent project identifier exceeds maximum length of {limit} characters.",
+        "invalid.color_too_long": "❌ Invalid input: Color name exceeds maximum length of {limit} characters.",
+        "invalid.project_identifier_empty": "❌ Invalid input: Project identifier cannot be empty or whitespace.",
+        "invalid.project_identifier_too_long": "❌ Invalid input: Project identifier exceeds maximum length of {limit} characters.",
+        "invalid.new_project_name_empty": "❌ Invalid input: New project name cannot be empty or whitespace.",
+        "invalid.new_project_name_too_long": "❌ Invalid input: New project name exceeds maximum length of {limit} characters.",
+        # Projects
+        "project.list.empty": "ℹ️ Todoist hesabınızda herhangi bir proje bulunamadı.",
+        "project.list.header": "📁 Mevcut Projeler (Toplam: {count}):",
+        "project.list.color_suffix": ", Renk: {color}",
+        "project.list.url_line": "{indent}• URL: {url}",
+        "project.list_failed": "❌ Failed to list projects from Todoist. Check server logs for details.",
+        "project.detail.none": "Yok",
+        "project.detail.no_parent": "Yok (üst seviye proje)",
+        "project.detail.yes": "Evet",
+        "project.detail.no": "Hayır",
+        "project.detail.not_set": "Belirlenmedi",
+        "project.detail": (
+            "📁 Proje Detayları (ID: {id})\n"
+            "• İsim: {name}\n"
+            "• Renk: {color}\n"
+            "• Üst Proje ID (parent_id): {parent}\n"
+            "• Favori mi: {favorite}\n"
+            "• Görünüm Stili: {view_style}\n"
+            "• URL: {url}"
+        ),
+        "project.get_failed": "❌ Failed to retrieve project from Todoist (ID: {id}). Check server logs for details.",
+        "project.create_failed": "❌ Failed to create project '{name}' in Todoist. Check server logs for details.",
+        "project.parent_not_found": "⚠️ Belirtilen üst proje bulunamadı: '{name}'.",
+        "project.created.parent_line": "\n• Üst Proje: '{name}' (ID: {id})",
+        "project.created.color_line": "\n• Renk: {color}",
+        "project.created.url_line": "\n• URL: {url}",
+        "project.created": "✅ Proje başarıyla oluşturuldu!\n• ID: {id}\n• İsim: {name}{parent_line}{color_line}{url_line}",
+        "project.update.no_fields": "⚠️ Güncellenecek hiçbir alan belirtilmedi. Lütfen name veya color parametresi girin.",
+        "project.update_failed": "❌ Failed to update project '{name}' in Todoist. Check server logs for details.",
+        "project.update.not_found": "⚠️ Güncellenecek proje bulunamadı: '{name}'.",
+        "project.update.change.name": "İsim: '{value}'",
+        "project.update.change.color": "Renk: '{value}'",
+        "project.updated": "✅ Proje başarıyla güncellendi (ID: {id})!\nYapılan değişiklikler:\n{changes}",
+        "project.delete_failed": "❌ Failed to delete project '{name}' in Todoist. Check server logs for details.",
+        "project.delete.not_found": "⚠️ Silinecek proje bulunamadı: '{name}'.",
+        "project.deleted": "🗑️ Proje başarıyla silindi: {target}.",
+        "project.delete_unconfirmed": "⚠️ Proje silinemedi: {target}.",
     },
 }
 
