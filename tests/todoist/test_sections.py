@@ -5,6 +5,7 @@ All tests use mocks to ensure zero network calls and deterministic results.
 
 import logging
 from unittest.mock import MagicMock, patch
+import pytest
 from plugvan.todoist.limits import (
     MAX_SECTION_NAME_LENGTH,
 )
@@ -21,6 +22,8 @@ from tests.todoist.helpers import (
     write_call_count,
 )
 
+pytestmark = pytest.mark.usefixtures("english_output")
+
 
 # =====================================================================
 # SECTIONS (CREATE_SECTION, LIST_SECTIONS, UPDATE_SECTION, DELETE_SECTION) TESTS
@@ -35,10 +38,10 @@ def test_create_section_success(mock_get_client):
     mock_api.add_section.return_value = MockSection("sec_101", "In Progress", project_id="proj_10")
 
     result = create_section(name="In Progress", project_name_or_id="Yazılım")
-    assert "✅ Bölüm başarıyla oluşturuldu!" in result
+    assert "✅ Section created successfully!" in result
     assert "ID: sec_101" in result
-    assert "İsim: In Progress" in result
-    assert "Proje: 'Yazılım' (ID: proj_10)" in result
+    assert "Name: In Progress" in result
+    assert "Project: 'Yazılım' (ID: proj_10)" in result
     mock_api.add_section.assert_called_once_with(name="In Progress", project_id="proj_10")
 
 
@@ -49,7 +52,7 @@ def test_create_section_project_not_found(mock_get_client):
     mock_api.get_projects.return_value = [[]]
 
     result = create_section(name="In Progress", project_name_or_id="Olmayan Proje")
-    assert "⚠️ Bölüm oluşturulacak hedef proje bulunamadı: 'Olmayan Proje'." in result
+    assert "⚠️ Target project for the new section not found: 'Olmayan Proje'." in result
 
 
 @patch("plugvan.todoist.client.get_api_client")
@@ -63,7 +66,7 @@ def test_list_sections_success(mock_get_client):
     mock_api.get_sections.return_value = [[sec1, sec2]]
 
     result = list_sections(project_name_or_id="Yazılım")
-    assert "📑 Mevcut Bölümler ('Yazılım' Projesi, Toplam: 2):" in result
+    assert "📑 Available Sections (Project 'Yazılım', Total: 2):" in result
     assert "1. [sec_1] Backlog" in result
     assert "2. [sec_2] Done" in result
 
@@ -75,7 +78,7 @@ def test_list_sections_empty(mock_get_client):
     mock_api.get_sections.return_value = [[]]
 
     result = list_sections()
-    assert "ℹ️ Todoist hesabınızda herhangi bir bölüm bulunamadı." in result
+    assert "ℹ️ No sections found in your Todoist account." in result
 
 
 @patch("plugvan.todoist.client.get_api_client")
@@ -85,9 +88,9 @@ def test_update_section_rename_by_name(mock_get_client):
     mock_api.get_sections.return_value = [[MockSection("sec_7", "Backlog", project_id="proj_10")]]
 
     result = update_section(section_name_or_id="Backlog", name="Yapılacaklar")
-    assert "✅ Bölüm başarıyla güncellendi (ID: sec_7)!" in result
-    assert "Eski isim: 'Backlog'" in result
-    assert "Yeni isim: 'Yapılacaklar'" in result
+    assert "✅ Section updated successfully (ID: sec_7)!" in result
+    assert "Old name: 'Backlog'" in result
+    assert "New name: 'Yapılacaklar'" in result
     mock_api.update_section.assert_called_once_with(section_id="sec_7", name="Yapılacaklar")
 
 
@@ -98,7 +101,7 @@ def test_update_section_rename_by_id(mock_get_client):
     mock_api.get_sections.return_value = [[MockSection("sec_8", "Done", project_id="proj_10")]]
 
     result = update_section(section_name_or_id="sec_8", name="Bitti")
-    assert "✅ Bölüm başarıyla güncellendi (ID: sec_8)!" in result
+    assert "✅ Section updated successfully (ID: sec_8)!" in result
     mock_api.update_section.assert_called_once_with(section_id="sec_8", name="Bitti")
 
 
@@ -110,7 +113,7 @@ def test_update_section_scoped_to_project(mock_get_client):
     mock_api.get_sections.return_value = [[MockSection("sec_9", "Backlog", project_id="proj_10")]]
 
     result = update_section(section_name_or_id="Backlog", name="Icebox", project_name_or_id="Yazılım")
-    assert "✅ Bölüm başarıyla güncellendi" in result
+    assert "✅ Section updated successfully" in result
     mock_api.get_sections.assert_called_once_with(project_id="proj_10")
     mock_api.update_section.assert_called_once_with(section_id="sec_9", name="Icebox")
 
@@ -122,7 +125,7 @@ def test_update_section_project_not_found(mock_get_client):
     mock_api.get_projects.return_value = [[]]
 
     result = update_section(section_name_or_id="Backlog", name="Icebox", project_name_or_id="Olmayan Proje")
-    assert "⚠️ Belirtilen proje bulunamadı: 'Olmayan Proje'." in result
+    assert "⚠️ Project not found: 'Olmayan Proje'." in result
     mock_api.update_section.assert_not_called()
 
 
@@ -133,7 +136,7 @@ def test_update_section_not_found(mock_get_client):
     mock_api.get_sections.return_value = [[]]
 
     result = update_section(section_name_or_id="Olmayan Bölüm", name="Yeni")
-    assert "⚠️ Güncellenecek bölüm bulunamadı: 'Olmayan Bölüm'." in result
+    assert "⚠️ Section to update not found: 'Olmayan Bölüm'." in result
     mock_api.update_section.assert_not_called()
 
 
@@ -173,7 +176,7 @@ def test_delete_section_success(mock_get_client):
     mock_api.delete_section.return_value = True
 
     result = delete_section(section_name_or_id="Eski Bölüm")
-    assert "🗑️ Bölüm başarıyla silindi: 'Eski Bölüm' (ID: sec_123)." in result
+    assert "🗑️ Section deleted successfully: 'Eski Bölüm' (ID: sec_123)." in result
     mock_api.delete_section.assert_called_once_with(section_id="sec_123")
 
 
@@ -184,7 +187,7 @@ def test_delete_section_not_found(mock_get_client):
     mock_api.get_sections.return_value = [[]]
 
     result = delete_section(section_name_or_id="Olmayan Bölüm")
-    assert "⚠️ Silinecek bölüm bulunamadı: 'Olmayan Bölüm'." in result
+    assert "⚠️ Section to delete not found: 'Olmayan Bölüm'." in result
 
 
 # =====================================================================
@@ -208,7 +211,7 @@ def test_delete_section_same_name_in_two_projects_is_ambiguous(mock_get_client):
     result = delete_section(section_name_or_id="Backlog")
 
     assert result == (
-        "⚠️ 'Backlog' için birden fazla bölüm bulundu; lütfen bölüm ID'sini kullanın:\n"
+        "⚠️ Multiple sections found for 'Backlog'; please use the section ID:\n"
         "• Backlog (sec_1)\n"
         "• Backlog (sec_2)"
     )
@@ -223,7 +226,7 @@ def test_update_section_same_name_unscoped_is_ambiguous(mock_get_client):
 
     result = update_section(section_name_or_id="Backlog", name="Icebox")
 
-    assert result.startswith("⚠️ 'Backlog' için birden fazla bölüm bulundu; lütfen bölüm ID'sini kullanın:")
+    assert result.startswith("⚠️ Multiple sections found for 'Backlog'; please use the section ID:")
     assert "• Backlog (sec_2)" in result
     assert write_call_count(mock_api) == 0
 
@@ -237,7 +240,7 @@ def test_update_section_scope_selects_section_of_that_project(mock_get_client):
 
     result = update_section(section_name_or_id="Backlog", name="Icebox", project_name_or_id="Ev")
 
-    assert "✅ Bölüm başarıyla güncellendi (ID: sec_2)!" in result
+    assert "✅ Section updated successfully (ID: sec_2)!" in result
     mock_api.update_section.assert_called_once_with(section_id="sec_2", name="Icebox")
 
 
@@ -247,8 +250,8 @@ def test_delete_and_update_section_partial_name_is_not_found(mock_get_client):
     mock_get_client.return_value = mock_api
     mock_api.get_sections.return_value = [[MockSection("sec_1", "Backlog", project_id="proj_1")]]
 
-    assert delete_section(section_name_or_id="Back") == "⚠️ Silinecek bölüm bulunamadı: 'Back'."
-    assert update_section(section_name_or_id="Back", name="X") == "⚠️ Güncellenecek bölüm bulunamadı: 'Back'."
+    assert delete_section(section_name_or_id="Back") == "⚠️ Section to delete not found: 'Back'."
+    assert update_section(section_name_or_id="Back", name="X") == "⚠️ Section to update not found: 'Back'."
     assert write_call_count(mock_api) == 0
 
 
@@ -261,7 +264,7 @@ def test_update_section_partial_project_scope_is_not_found(mock_get_client):
 
     result = update_section(section_name_or_id="Backlog", name="X", project_name_or_id="Yazılım")
 
-    assert result == "⚠️ Belirtilen proje bulunamadı: 'Yazılım'."
+    assert result == "⚠️ Project not found: 'Yazılım'."
     assert write_call_count(mock_api) == 0
 
 
@@ -273,7 +276,7 @@ def test_update_section_ambiguous_project_scope_writes_nothing(mock_get_client):
 
     result = update_section(section_name_or_id="Backlog", name="X", project_name_or_id="Ev")
 
-    assert result.startswith("⚠️ 'Ev' için birden fazla proje bulundu; lütfen proje ID'sini kullanın:")
+    assert result.startswith("⚠️ Multiple projects found for 'Ev'; please use the project ID:")
     assert write_call_count(mock_api) == 0
 
 
@@ -287,7 +290,7 @@ def test_update_section_inbox_scope_without_listed_inbox_is_not_found(mock_get_c
 
     result = update_section(section_name_or_id="Backlog", name="X", project_name_or_id="Inbox")
 
-    assert result == "⚠️ Güncellenecek bölüm bulunamadı: 'Backlog'."
+    assert result == "⚠️ Section to update not found: 'Backlog'."
     mock_api.get_sections.assert_not_called()
     assert write_call_count(mock_api) == 0
 
@@ -334,7 +337,7 @@ def test_create_section_ambiguous_project_creates_nothing(mock_get_client):
     result = create_section(name="In Progress", project_name_or_id="Work")
 
     assert result == (
-        "⚠️ 'Work' için birden fazla proje bulundu; lütfen proje ID'sini kullanın:\n"
+        "⚠️ Multiple projects found for 'Work'; please use the project ID:\n"
         "• Homework (p1)\n"
         "• Workshop (p2)"
     )
@@ -352,7 +355,7 @@ def test_list_sections_ambiguous_project_lists_nothing(mock_get_client):
     result = list_sections(project_name_or_id="Work")
 
     assert result == (
-        "⚠️ 'Work' için birden fazla proje bulundu; lütfen proje ID'sini kullanın:\n"
+        "⚠️ Multiple projects found for 'Work'; please use the project ID:\n"
         "• Homework (p1)\n"
         "• Workshop (p2)"
     )
@@ -370,9 +373,9 @@ def test_create_section_and_list_sections_unique_partial_show_resolved_name(mock
     created = create_section(name="In Progress", project_name_or_id="yazılım")
     listed = list_sections(project_name_or_id="yazılım")
 
-    assert "Proje: 'Yazılım Geliştirme' (ID: p1)" in created
+    assert "Project: 'Yazılım Geliştirme' (ID: p1)" in created
     mock_api.add_section.assert_called_once_with(name="In Progress", project_id="p1")
-    assert "📑 Mevcut Bölümler ('Yazılım Geliştirme' Projesi, Toplam: 1):" in listed
+    assert "📑 Available Sections (Project 'Yazılım Geliştirme', Total: 1):" in listed
     mock_api.get_sections.assert_called_once_with(project_id="p1")
 
 
@@ -384,16 +387,16 @@ def test_create_section_and_list_sections_inbox_alias(mock_get_client):
     mock_api.get_sections.return_value = [[MockSection("sec_new", "Backlog", project_id="inbox_1")]]
 
     mock_api.get_projects.return_value = [[MockProject("inbox_1", "Inbox", is_inbox=True)]]
-    assert "Proje: 'Inbox' (ID: inbox_1)" in create_section(name="Backlog", project_name_or_id="Gelen Kutusu")
-    assert "('Inbox' Projesi, Toplam: 1)" in list_sections(project_name_or_id="inbox")
+    assert "Project: 'Inbox' (ID: inbox_1)" in create_section(name="Backlog", project_name_or_id="Gelen Kutusu")
+    assert "(Project 'Inbox', Total: 1)" in list_sections(project_name_or_id="inbox")
 
     mock_api.add_section.reset_mock()
     mock_api.get_sections.reset_mock()
     mock_api.get_projects.return_value = [[MockProject("p2", "Ev")]]
     assert create_section(name="Backlog", project_name_or_id="Inbox") == (
-        "⚠️ Bölüm oluşturulacak hedef proje bulunamadı: 'Inbox'."
+        "⚠️ Target project for the new section not found: 'Inbox'."
     )
-    assert list_sections(project_name_or_id="Inbox") == "⚠️ Belirtilen proje bulunamadı: 'Inbox'."
+    assert list_sections(project_name_or_id="Inbox") == "⚠️ Project not found: 'Inbox'."
     mock_api.get_sections.assert_not_called()
     assert write_call_count(mock_api) == 0
 
@@ -407,8 +410,8 @@ def test_create_section_and_list_sections_not_found_list_no_candidates(mock_get_
     created = create_section(name="Backlog", project_name_or_id="Okul")
     listed = list_sections(project_name_or_id="Okul")
 
-    assert created == "⚠️ Bölüm oluşturulacak hedef proje bulunamadı: 'Okul'."
-    assert listed == "⚠️ Belirtilen proje bulunamadı: 'Okul'."
+    assert created == "⚠️ Target project for the new section not found: 'Okul'."
+    assert listed == "⚠️ Project not found: 'Okul'."
     mock_api.get_sections.assert_not_called()
     assert write_call_count(mock_api) == 0
 
