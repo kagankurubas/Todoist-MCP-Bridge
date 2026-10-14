@@ -24,15 +24,15 @@ def test_missing_key_surfaces_as_tool_error_not_generic_failure(mock_get_client,
     mock_api = MagicMock()
     mock_api.get_projects.return_value = [[MockProject("p1", "Proje A"), MockProject("p2", "Proje B")]]
     mock_get_client.return_value = mock_api
-    monkeypatch.delitem(CATALOGS["tr"], "ambiguous.project")
+    monkeypatch.delitem(CATALOGS["en"], "ambiguous.project")
 
     with pytest.raises(ToolError) as exc_info:
         asyncio.run(mcp.call_tool("create_task", {"content": "X", "project_name": "Proje"}))
 
     cause = exc_info.value.__cause__
     assert isinstance(cause, MissingMessageError)
-    assert str(cause) == "No 'ambiguous.project' message for language 'tr'"
-    assert str(exc_info.value) == "Error executing tool create_task: No 'ambiguous.project' message for language 'tr'"
+    assert str(cause) == "No 'ambiguous.project' message for language 'en'"
+    assert str(exc_info.value) == "Error executing tool create_task: No 'ambiguous.project' message for language 'en'"
     assert "Check server logs" not in str(exc_info.value)
     assert write_call_count(mock_api) == 0
 

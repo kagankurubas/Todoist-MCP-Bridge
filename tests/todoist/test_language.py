@@ -24,20 +24,20 @@ def _language_warnings(caplog):
     return [r for r in caplog.records if r.name == "todoist_mcp" and r.levelno == logging.WARNING]
 
 
-def test_default_language_is_tr_until_the_switch():
-    assert DEFAULT_LANGUAGE == "tr"
+def test_default_language_is_en():
+    assert DEFAULT_LANGUAGE == "en"
 
 
 def test_unset_uses_default(monkeypatch):
     monkeypatch.delenv("PLUGVAN_LANG", raising=False)
-    assert current_language() == DEFAULT_LANGUAGE
+    assert current_language() == "en"
 
 
 @pytest.mark.parametrize("value", ["", "   "])
 def test_empty_uses_default_without_warning(monkeypatch, caplog, value):
     monkeypatch.setenv("PLUGVAN_LANG", value)
     with caplog.at_level(logging.WARNING, logger="todoist_mcp"):
-        assert current_language() == DEFAULT_LANGUAGE
+        assert current_language() == "en"
     assert _language_warnings(caplog) == []
 
 
@@ -58,7 +58,7 @@ def test_unsupported_value_falls_back_with_one_warning(monkeypatch, caplog, valu
     with caplog.at_level(logging.WARNING, logger="todoist_mcp"):
         results = [current_language() for _ in range(5)]
 
-    assert results == [DEFAULT_LANGUAGE] * 5
+    assert results == ["en"] * 5
     warnings = _language_warnings(caplog)
     assert len(warnings) == 1
     assert repr(value) in warnings[0].getMessage()
@@ -68,7 +68,7 @@ def test_logged_unsupported_value_is_capped(monkeypatch, caplog):
     long_value = "x" * 500
     monkeypatch.setenv("PLUGVAN_LANG", long_value)
     with caplog.at_level(logging.WARNING, logger="todoist_mcp"):
-        assert current_language() == DEFAULT_LANGUAGE
+        assert current_language() == "en"
 
     message = _language_warnings(caplog)[0].getMessage()
     assert repr("x" * MAX_LOGGED_LANGUAGE_VALUE_LENGTH) in message

@@ -18,13 +18,13 @@ def test_session_starts_from_default_language():
     # A boolean with a fixed message, so a failure can never echo the process environment.
     leaked = "PLUGVAN_LANG" in os.environ
     assert not leaked, "PLUGVAN_LANG from the environment reached the test session"
-    assert current_language() == "tr"
+    assert current_language() == "en"
 
 
 def test_plugvan_lang_in_shell_never_reaches_tests():
     """Runs the test above in a fresh pytest process whose environment selects the
     non-default language: the conftest must remove it before any test runs."""
-    env = {**os.environ, "PLUGVAN_LANG": "en"}
+    env = {**os.environ, "PLUGVAN_LANG": "tr"}
 
     result = subprocess.run(
         [

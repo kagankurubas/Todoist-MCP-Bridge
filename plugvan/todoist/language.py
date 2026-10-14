@@ -6,7 +6,7 @@ import os
 logger = logging.getLogger("todoist_mcp")
 
 SUPPORTED_LANGUAGES = ("en", "tr")
-DEFAULT_LANGUAGE = "tr"
+DEFAULT_LANGUAGE = "en"
 MAX_LOGGED_LANGUAGE_VALUE_LENGTH = 32
 
 _unsupported_value_warned = False

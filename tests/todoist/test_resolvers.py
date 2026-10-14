@@ -5,7 +5,6 @@ All tests use mocks to ensure zero network calls and deterministic results.
 
 import logging
 from unittest.mock import MagicMock
-import pytest
 
 from plugvan.todoist.resolvers import (
     MAX_AMBIGUOUS_CANDIDATES,
@@ -24,8 +23,6 @@ from tests.todoist.helpers import (
     MockProject,
     MockSection,
 )
-
-pytestmark = pytest.mark.usefixtures("english_output")
 
 
 def _api_with_projects(*projects):

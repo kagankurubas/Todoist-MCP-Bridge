@@ -5,7 +5,6 @@ All tests use mocks to ensure zero network calls and deterministic results.
 
 import logging
 from unittest.mock import MagicMock, patch
-import pytest
 from plugvan.todoist.limits import (
     MAX_COLOR_LENGTH,
     MAX_PROJECT_NAME_LENGTH,
@@ -23,8 +22,6 @@ from tests.todoist.helpers import (
     _make_http_status_error,
     write_call_count,
 )
-
-pytestmark = pytest.mark.usefixtures("english_output")
 
 
 # =====================================================================

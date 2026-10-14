@@ -4,7 +4,6 @@ All tests use mocks to ensure zero network calls and deterministic results.
 """
 
 from unittest.mock import MagicMock, patch
-import pytest
 from plugvan.todoist.tools.comments import (
     add_comment,
     get_comments,
@@ -12,8 +11,6 @@ from plugvan.todoist.tools.comments import (
 from tests.todoist.helpers import (
     MockComment,
 )
-
-pytestmark = pytest.mark.usefixtures("english_output")
 
 
 # =====================================================================

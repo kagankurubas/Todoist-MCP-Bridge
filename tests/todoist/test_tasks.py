@@ -32,8 +32,6 @@ from tests.todoist.helpers import (
     write_call_count,
 )
 
-pytestmark = pytest.mark.usefixtures("english_output")
-
 
 # =====================================================================
 # CREATE_TASK TESTS
