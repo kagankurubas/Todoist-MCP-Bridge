@@ -19,48 +19,19 @@ pytest -v
 pytest tests/todoist/test_tasks.py
 pytest tests/todoist/test_tasks.py::test_create_task_success -v
 
-# Run the FastAPI webhook server (app.py)
-uvicorn app:app --port 8000
-# Swagger UI: http://127.0.0.1:8000/docs
-
 # Run the MCP server directly (normally launched by Claude Desktop over STDIO)
 python -m plugvan.todoist
-
-# Create tasks with the standalone CLI (main.py)
-python main.py --file tasks_sample.json
-python main.py --json '[{"content": "Task", "due_string": "today", "priority": 2}]'
-
-# Google Tasks -> Todoist sync service
-python sync_worker.py                    # one-shot
-python sync_worker.py --watch --interval 15   # continuous watching (polling)
-
-# Webhook client (sends a JSON file to a running app.py instance)
-python send_to_bridge.py --file tasks_sample.json
-
-# Docker (runs sync_worker.py once by default)
-docker build -t todoist-bridge .
-docker run --env-file .env todoist-bridge
 ```
 
 There is no configured linter/formatter in this repo (no ruff/black/mypy config) — do not act as if there were one.
 
-Required environment variables (`.env`, see `.env.example`): `TODOIST_API_TOKEN`, `WEBHOOK_SECRET_TOKEN`, optional `ALLOWED_ORIGINS` (CORS, default `*`). They are loaded through the Pydantic `Settings` in `config.py`. The sync worker additionally needs a Google OAuth `credentials.json` (Desktop Client) file in the repo root; `token.json` is created automatically on first authentication. For serverless/ephemeral environments, both can be supplied via the `GOOGLE_CREDENTIALS_JSON` / `GOOGLE_TOKEN_JSON` environment variables.
+Required environment variable (`.env`, see `.env.example`): `TODOIST_API_TOKEN`. `client.get_api_client()` reads it from the environment; `python -m plugvan.todoist` loads `.env` first with `load_dotenv()`.
 
 ## Architecture
 
-This project is not a single application but a Python toolkit made of **four independent entry points that all go through the same validation/task-creation core**:
+This project has a single entry point: `plugvan.todoist` (the `plugvan/todoist/` package, `python -m plugvan.todoist`), the tool surface exposed to Claude Desktop; a FastMCP server running over STDIO. It talks to Todoist through the official `todoist-api-python` SDK and has its own name-resolution/validation logic.
 
-- `plugvan.todoist` (the `plugvan/todoist/` package, `python -m plugvan.todoist`) — the tool surface exposed to Claude Desktop; a FastMCP server running over STDIO. It is self-contained: it talks to Todoist not through `todoist_client.py` but directly through the official `todoist-api-python` SDK, and has its own name-resolution/validation logic.
-- `app.py` — FastAPI REST server (webhook target for automations such as n8n/Make). Authentication is done with a constant-time (`secrets.compare_digest`) comparison of the `X-Bridge-Token` header.
-- `main.py` — a CLI tool run directly; it also exports the `build_project_map` / `resolve_project_id` functions, which `app.py` imports and reuses for its own project-name resolution.
-- `sync_worker.py` — an OAuth 2.0 service that pulls tasks from Google Tasks, transforms each item with `parse_google_task`, sends it to Todoist, and deletes the successfully created tasks from the source Google Task.
-
-### Shared core (used by `main.py`, `app.py`, `sync_worker.py`)
-
-- `models.py` — `TaskPayload` (single task) and `BatchTaskPayload` (`tasks: List[TaskPayload]`, maximum 50) are the Pydantic schemas everything is validated against. `project_name` defaults to `"Odak & Gelişim"`; `priority` ranges from 1 (normal) to 4 (urgent) — note: Todoist's own API and `sync_worker.py`'s tag parser (`p1`=urgent..`p4`=normal) invert this scale, which is why the priority mapping is done explicitly in `parse_google_task`.
-- `parser.py` — `parse_tasks_from_json` strips markdown code fences (` ```json ... ``` `) from raw LLM output, then accepts three JSON shapes: a plain list, `{"tasks": [...]}`, or a single task object. Raises `TaskParseError` on failure.
-- `todoist_client.py` — a thin `requests` wrapper over the Todoist REST API v1 (used by `main.py`, `app.py`, `sync_worker.py`; NOT used by `plugvan.todoist`, which uses the SDK). It raises typed exceptions that `app.py`'s FastAPI exception handlers map to HTTP responses (`TodoistAuthError` 401, `TodoistValidationError` 400, `TodoistServerError` 5xx, with `TodoistAPIError` as the base class). `create_task` accepts both keyword arguments and a `TaskPayload`/dict as the first positional argument.
-- Project-name resolution is deliberately duplicated in three places with the same case-insensitive/Unicode-normalized logic: `main.py::resolve_project_id` (dict lookup), `todoist_client.py::resolve_project_name` (Todoist REST), and `plugvan/todoist/resolvers.py::resolve_project` (SDK; additionally with Inbox alias, single-candidate partial match and ambiguity layers). The difference in behavior is deliberate: MCP tools return an error on an unknown name, while the CLI/webhook/sync worker fall back to the Inbox. When touching the resolution logic, check whether the change needs to be applied to all three.
+Project-name resolution lives in one place, `plugvan/todoist/resolvers.py::resolve_project` (case-insensitive, Unicode-normalized, with Inbox alias, single-candidate partial match and ambiguity layers). MCP tools return an error on an unknown name; an unknown name never falls back to the Inbox.
 
 ### `plugvan.todoist` internals
 
@@ -92,22 +63,18 @@ Each tool independently:
 
 The decision to give tool names an application prefix (such as `todoist_create_task`) was postponed: it will be done later with the standalone `fastmcp`'s `mount(server, namespace=...)` feature, without changing code. This requires moving from the SDK's FastMCP to the standalone `fastmcp`; therefore do not remove the `fastmcp` dependency from `requirements.txt`.
 
-### `sync_worker.py` tag syntax
-
-`parse_google_task` extracts structured fields from free-text Google Task titles/notes with regexes in this order: priority (`p[1-4]`), due date (`@today`, `@tomorrow at 15:00`, ...), project (`[Project Name]` or `#Project Name`), then an inline time pulled from the notes and combined with Google's `due` date into an ISO `due_datetime` (`Saat: HH:MM` or a bare `HH:MM`). The text left after tag extraction becomes `content`.
-
 ### Tests
 
-`tests/` mirrors the module structure and mocks all network/API calls — no real Todoist or Google calls are made.
+`tests/` mirrors the module structure and mocks all network/API calls — no real Todoist calls are made.
 - `tests/todoist/` — the `plugvan.todoist` tests, mirroring the package one-to-one: `test_tasks.py`, `test_projects.py`, `test_sections.py`, `test_labels.py`, `test_comments.py`, `test_resolvers.py`, `test_server_surface.py`. It has its own `__init__.py` (imported as `tests.todoist`).
 - `tests/todoist/helpers.py` — lightweight `MockProject`/`MockLabel`/`MockSection`/`MockComment`/`MockTask` classes that mirror the SDK's object attributes instead of mocking the SDK client wholesale, `_make_http_status_error`, and `write_call_count` (counts all write calls on the mocked SDK; every public method other than `get_`/`filter_`/`search_` counts as a write). Because it does not start with `test_`, pytest does not collect it.
-- The others are at the root: `test_api.py`, `test_models.py`, `test_parser.py`, `test_todoist_client.py`, `test_project_resolution.py`.
+- The others are at the root: `conftest.py` (sets a fake `TODOIST_API_TOKEN` and installs the autouse network guard that blocks non-loopback connections), `test_credentials_isolation.py` (a real token in the shell never reaches a test) and `test_network_guard.py` (the guard's own tests).
 
 **Surface snapshot rule:** `tests/fixtures/todoist_mcp_tool_surface.json` is a one-time recording of the MCP tool surface (22 tools: name, description, `inputSchema`, `outputSchema`) taken from the old module before the move; `test_server_surface.py` compares the live server against it by name (order-independent). The fixture is **never regenerated** unless there is a deliberate behavior change; changing a tool's description/parameter breaks the test, and updating the fixture means knowingly accepting that change.
 
 ## Language
 
-All commit messages, PR titles and bodies, issue titles and bodies, review comments, CHANGELOG entries and in-repo documentation are written in English, regardless of the language used in chat with the maintainer. The only exception is README.tr.md, the Turkish translation of README.md, which is maintained as a user-facing second language.
+All commit messages, PR titles and bodies, issue titles and bodies, review comments, CHANGELOG entries and in-repo documentation are written in English, regardless of the language used in chat with the maintainer. The only exception is the Turkish section of README.md (`## 🇹🇷 Türkçe`), the Turkish translation of its English section, which is maintained as a user-facing second language.
 
 ## Agent skills
 
@@ -121,4 +88,4 @@ The default five labels are used: `needs-triage`, `needs-info`, `ready-for-agent
 
 ### Domain docs
 
-Single-context layout: a single `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+Single-context layout: a single `CONTEXT.md` + `docs/adr/` at the repo root. Neither exists yet; they are created lazily when terms or decisions get resolved. See `docs/agents/domain.md`.
