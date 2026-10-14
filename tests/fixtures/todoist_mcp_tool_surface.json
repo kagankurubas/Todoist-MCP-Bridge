@@ -224,7 +224,7 @@
   },
   {
     "name": "create_task",
-    "description": "Creates a new task in Todoist with smart project, section, label, and due date resolution.\n\nArgs:\n    content: Task title/content (must not be empty, max 500 chars).\n    description: Task notes or description (max 4096 chars).\n    project_name: Target project name (max 120 chars, defaults to 'Gelen Kutusu').\n    due_string: Natural language date string (e.g. 'tomorrow at 14:00', max 150 chars).\n    priority: Priority integer strictly between 1 (normal) and 4 (urgent).\n    labels: Optional list of label strings to attach to the task.\n    section_name_or_id: Optional target section name or ID within the project.\n    parent_id: Optional Todoist task ID to create this task as a subtask of (max 100 chars).\n    deadline_date: Optional official deadline date (YYYY-MM-DD), distinct from due_string.\n",
+    "description": "Creates a new task in Todoist with smart project, section, label, and due date resolution.\n\nArgs:\n    content: Task title/content (must not be empty, max 500 chars).\n    description: Task notes or description (max 4096 chars).\n    project_name: Target project name (max 120 chars, defaults to 'Inbox').\n    due_string: Natural language date string (e.g. 'tomorrow at 14:00', max 150 chars).\n    priority: Priority integer strictly between 1 (normal) and 4 (urgent).\n    labels: Optional list of label strings to attach to the task.\n    section_name_or_id: Optional target section name or ID within the project.\n    parent_id: Optional Todoist task ID to create this task as a subtask of (max 100 chars).\n    deadline_date: Optional official deadline date (YYYY-MM-DD), distinct from due_string.\n",
     "inputSchema": {
       "properties": {
         "content": {
@@ -242,8 +242,8 @@
           "type": "string"
         },
         "project_name": {
-          "default": "Gelen Kutusu",
-          "description": "Target Todoist project name (defaults to 'Gelen Kutusu' / Inbox).",
+          "default": "Inbox",
+          "description": "Target Todoist project name (defaults to 'Inbox').",
           "maxLength": 120,
           "title": "Project Name",
           "type": "string"
@@ -311,7 +311,7 @@
             }
           ],
           "default": null,
-          "description": "Bu görevi belirtilen Todoist görev ID'sinin alt görevi (subtask) yapar (opsiyonel).",
+          "description": "Makes this task a subtask of the Todoist task with the given ID (optional).",
           "title": "Parent Id"
         },
         "deadline_date": {

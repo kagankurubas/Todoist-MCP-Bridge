@@ -11,6 +11,7 @@ from plugvan.todoist.limits import (
     MAX_TASK_ID_LENGTH,
     MAX_COLOR_LENGTH,
 )
+from plugvan.todoist.messages import MissingMessageError, message
 from plugvan.todoist.resolvers import (
     Ambiguous,
     LookupFailed,
@@ -30,7 +31,7 @@ def list_projects() -> str:
         projects = _get_all_projects(api)
 
         if not projects:
-            return "ℹ️ Todoist hesabınızda herhangi bir proje bulunamadı."
+            return message("project.list.empty")
 
         children_map: dict[Optional[str], list] = {}
         all_ids = {str(getattr(p, "id", "")) for p in projects}
@@ -41,15 +42,15 @@ def list_projects() -> str:
                 parent_id = None
             children_map.setdefault(parent_id, []).append(project)
 
-        lines = [f"📁 Mevcut Projeler (Toplam: {len(projects)}):", ""]
+        lines = [message("project.list.header", count=len(projects)), ""]
 
         def format_project_tree(parent_id: Optional[str], depth: int = 0, counter: list[int] = None):
             if counter is None:
                 counter = [1]
             for project in children_map.get(parent_id, []):
-                is_inbox = " [Gelen Kutusu]" if getattr(project, "is_inbox_project", False) else ""
+                is_inbox = message("inbox.marker") if getattr(project, "is_inbox_project", False) else ""
                 is_fav = " ⭐" if getattr(project, "is_favorite", False) else ""
-                color_info = f", Renk: {project.color}" if getattr(project, "color", None) else ""
+                color_info = message("project.list.color_suffix", color=project.color) if getattr(project, "color", None) else ""
                 
                 if depth == 0:
                     prefix = f"{counter[0]}. "
@@ -60,20 +61,22 @@ def list_projects() -> str:
                 lines.append(f"{prefix}[{project.id}] {project.name}{is_inbox}{is_fav}{color_info}")
                 if getattr(project, "url", None):
                     url_indent = "   " * (depth + 1)
-                    lines.append(f"{url_indent}• URL: {project.url}")
+                    lines.append(message("project.list.url_line", indent=url_indent, url=project.url))
 
                 format_project_tree(str(project.id), depth + 1, counter)
 
         format_project_tree(None, depth=0)
 
         return "\n".join(lines).strip()
+    except MissingMessageError:
+        raise
     except Exception as e:
         logger.error(
             "Failed to list projects from Todoist (error_type=%s)",
             type(e).__name__,
             exc_info=False,
         )
-        return "❌ Failed to list projects from Todoist. Check server logs for details."
+        return message("project.list_failed")
 
 
 def get_project(
@@ -93,28 +96,31 @@ def get_project(
     """
     clean_project_id = str(project_id).strip() if project_id is not None else ""
     if not clean_project_id:
-        return "❌ Invalid input: Project ID cannot be empty or whitespace."
+        return message("invalid.project_id_empty")
     if len(clean_project_id) > MAX_TASK_ID_LENGTH:
-        return f"❌ Invalid input: Project ID exceeds maximum length of {MAX_TASK_ID_LENGTH} characters."
+        return message("invalid.project_id_too_long", limit=MAX_TASK_ID_LENGTH)
 
     try:
         api = client.get_api_client()
         project = api.get_project(project_id=clean_project_id)
 
-        color_display = project.color if getattr(project, "color", None) else "Yok"
-        parent_display = project.parent_id if getattr(project, "parent_id", None) else "Yok (üst seviye proje)"
-        favorite_display = "Evet" if getattr(project, "is_favorite", False) else "Hayır"
-        view_style_display = getattr(project, "view_style", None) or "Belirlenmedi"
+        color_display = project.color if getattr(project, "color", None) else message("project.detail.none")
+        parent_display = project.parent_id if getattr(project, "parent_id", None) else message("project.detail.no_parent")
+        favorite_display = message("project.detail.yes") if getattr(project, "is_favorite", False) else message("project.detail.no")
+        view_style_display = getattr(project, "view_style", None) or message("project.detail.not_set")
 
-        return (
-            f"📁 Proje Detayları (ID: {project.id})\n"
-            f"• İsim: {project.name}\n"
-            f"• Renk: {color_display}\n"
-            f"• Üst Proje ID (parent_id): {parent_display}\n"
-            f"• Favori mi: {favorite_display}\n"
-            f"• Görünüm Stili: {view_style_display}\n"
-            f"• URL: {project.url}"
+        return message(
+            "project.detail",
+            id=project.id,
+            name=project.name,
+            color=color_display,
+            parent=parent_display,
+            favorite=favorite_display,
+            view_style=view_style_display,
+            url=project.url,
         )
+    except MissingMessageError:
+        raise
     except Exception as e:
         logger.error(
             "Failed to retrieve project from Todoist (project_id=%s, error_type=%s)",
@@ -122,7 +128,7 @@ def get_project(
             type(e).__name__,
             exc_info=False,
         )
-        return f"❌ Failed to retrieve project from Todoist (ID: {clean_project_id}). Check server logs for details."
+        return message("project.get_failed", id=clean_project_id)
 
 
 def create_project(
@@ -160,19 +166,19 @@ def create_project(
     """
     clean_name = name.strip() if isinstance(name, str) else ""
     if not clean_name:
-        return "❌ Invalid input: Project name cannot be empty or whitespace."
+        return message("invalid.project_name_empty")
     if len(clean_name) > MAX_PROJECT_NAME_LENGTH:
-        return f"❌ Invalid input: Project name exceeds maximum length of {MAX_PROJECT_NAME_LENGTH} characters."
+        return message("invalid.project_name_too_long", limit=MAX_PROJECT_NAME_LENGTH)
 
     clean_parent = parent_project_name_or_id.strip() if isinstance(parent_project_name_or_id, str) else None
     if clean_parent and len(clean_parent) > MAX_PROJECT_NAME_LENGTH:
-        return f"❌ Invalid input: Parent project identifier exceeds maximum length of {MAX_PROJECT_NAME_LENGTH} characters."
+        return message("invalid.parent_project_identifier_too_long", limit=MAX_PROJECT_NAME_LENGTH)
 
     clean_color = color.strip().lower() if isinstance(color, str) else None
     if clean_color and len(clean_color) > MAX_COLOR_LENGTH:
-        return f"❌ Invalid input: Color name exceeds maximum length of {MAX_COLOR_LENGTH} characters."
+        return message("invalid.color_too_long", limit=MAX_COLOR_LENGTH)
 
-    failure_message = f"❌ Failed to create project '{clean_name}' in Todoist. Check server logs for details."
+    failure_message = message("project.create_failed", name=clean_name)
     try:
         api = client.get_api_client()
         kwargs = {}
@@ -183,30 +189,32 @@ def create_project(
             if isinstance(parent, LookupFailed):
                 return failure_message
             if isinstance(parent, Ambiguous):
-                return ambiguous_message(parent, "proje")
+                return ambiguous_message(parent, "ambiguous.project")
             # Found(None, ...) is an Inbox alias with no listed Inbox: a parent needs a real project ID.
             if isinstance(parent, NotFound) or parent.id is None:
-                return f"⚠️ Belirtilen üst proje bulunamadı: '{clean_parent}'."
+                return message("project.parent_not_found", name=clean_parent)
             parent_id, parent_name = parent.id, parent.name
             kwargs["parent_id"] = parent_id
-            parent_display = f"\n• Üst Proje: '{parent_name}' (ID: {parent_id})"
+            parent_display = message("project.created.parent_line", name=parent_name, id=parent_id)
 
         if clean_color:
             kwargs["color"] = clean_color
 
         project = api.add_project(name=clean_name, **kwargs)
 
-        color_str = f"\n• Renk: {project.color}" if getattr(project, "color", None) else ""
-        url_str = f"\n• URL: {project.url}" if getattr(project, "url", None) else ""
+        color_str = message("project.created.color_line", color=project.color) if getattr(project, "color", None) else ""
+        url_str = message("project.created.url_line", url=project.url) if getattr(project, "url", None) else ""
 
-        return (
-            f"✅ Proje başarıyla oluşturuldu!\n"
-            f"• ID: {project.id}\n"
-            f"• İsim: {project.name}"
-            f"{parent_display}"
-            f"{color_str}"
-            f"{url_str}"
+        return message(
+            "project.created",
+            id=project.id,
+            name=project.name,
+            parent_line=parent_display,
+            color_line=color_str,
+            url_line=url_str,
         )
+    except MissingMessageError:
+        raise
     except Exception as e:
         logger.error(
             "Failed to create project in Todoist (name=%s, error_type=%s)",
@@ -256,24 +264,24 @@ def update_project(
     """
     clean_identifier = str(project_name_or_id).strip() if project_name_or_id is not None else ""
     if not clean_identifier:
-        return "❌ Invalid input: Project identifier cannot be empty or whitespace."
+        return message("invalid.project_identifier_empty")
     if len(clean_identifier) > MAX_PROJECT_NAME_LENGTH:
-        return f"❌ Invalid input: Project identifier exceeds maximum length of {MAX_PROJECT_NAME_LENGTH} characters."
+        return message("invalid.project_identifier_too_long", limit=MAX_PROJECT_NAME_LENGTH)
 
     clean_name = name.strip() if isinstance(name, str) else None
     if clean_name is not None and not clean_name:
-        return "❌ Invalid input: New project name cannot be empty or whitespace."
+        return message("invalid.new_project_name_empty")
     if clean_name is not None and len(clean_name) > MAX_PROJECT_NAME_LENGTH:
-        return f"❌ Invalid input: New project name exceeds maximum length of {MAX_PROJECT_NAME_LENGTH} characters."
+        return message("invalid.new_project_name_too_long", limit=MAX_PROJECT_NAME_LENGTH)
 
     clean_color = color.strip().lower() if isinstance(color, str) else None
     if clean_color and len(clean_color) > MAX_COLOR_LENGTH:
-        return f"❌ Invalid input: Color name exceeds maximum length of {MAX_COLOR_LENGTH} characters."
+        return message("invalid.color_too_long", limit=MAX_COLOR_LENGTH)
 
     if clean_name is None and clean_color is None:
-        return "⚠️ Güncellenecek hiçbir alan belirtilmedi. Lütfen name veya color parametresi girin."
+        return message("project.update.no_fields")
 
-    failure_message = f"❌ Failed to update project '{clean_identifier}' in Todoist. Check server logs for details."
+    failure_message = message("project.update_failed", name=clean_identifier)
     try:
         api = client.get_api_client()
         resolved = resolve_project(api, clean_identifier)
@@ -281,28 +289,26 @@ def update_project(
         if isinstance(resolved, LookupFailed):
             return failure_message
         if isinstance(resolved, Ambiguous):
-            return ambiguous_message(resolved, "proje")
+            return ambiguous_message(resolved, "ambiguous.project")
         if isinstance(resolved, NotFound):
-            return f"⚠️ Güncellenecek proje bulunamadı: '{clean_identifier}'."
+            return message("project.update.not_found", name=clean_identifier)
         project_id = resolved.id
 
         kwargs = {}
         updated_fields = []
         if clean_name is not None:
             kwargs["name"] = clean_name
-            updated_fields.append(f"İsim: '{clean_name}'")
+            updated_fields.append(message("project.update.change.name", value=clean_name))
         if clean_color is not None:
             kwargs["color"] = clean_color
-            updated_fields.append(f"Renk: '{clean_color}'")
+            updated_fields.append(message("project.update.change.color", value=clean_color))
 
         api.update_project(project_id=project_id, **kwargs)
 
         changes_summary = "\n".join([f"• {field}" for field in updated_fields])
-        return (
-            f"✅ Proje başarıyla güncellendi (ID: {project_id})!\n"
-            f"Yapılan değişiklikler:\n"
-            f"{changes_summary}"
-        )
+        return message("project.updated", id=project_id, changes=changes_summary)
+    except MissingMessageError:
+        raise
     except Exception as e:
         logger.error(
             "Failed to update project in Todoist (identifier=%s, error_type=%s)",
@@ -330,11 +336,11 @@ def delete_project(
     """
     clean_identifier = str(project_name_or_id).strip() if project_name_or_id is not None else ""
     if not clean_identifier:
-        return "❌ Invalid input: Project identifier cannot be empty or whitespace."
+        return message("invalid.project_identifier_empty")
     if len(clean_identifier) > MAX_PROJECT_NAME_LENGTH:
-        return f"❌ Invalid input: Project identifier exceeds maximum length of {MAX_PROJECT_NAME_LENGTH} characters."
+        return message("invalid.project_identifier_too_long", limit=MAX_PROJECT_NAME_LENGTH)
 
-    failure_message = f"❌ Failed to delete project '{clean_identifier}' in Todoist. Check server logs for details."
+    failure_message = message("project.delete_failed", name=clean_identifier)
     try:
         api = client.get_api_client()
         resolved = resolve_project(api, clean_identifier)
@@ -342,18 +348,20 @@ def delete_project(
         if isinstance(resolved, LookupFailed):
             return failure_message
         if isinstance(resolved, Ambiguous):
-            return ambiguous_message(resolved, "proje")
+            return ambiguous_message(resolved, "ambiguous.project")
         if isinstance(resolved, NotFound):
-            return f"⚠️ Silinecek proje bulunamadı: '{clean_identifier}'."
+            return message("project.delete.not_found", name=clean_identifier)
         project_id, project_name = resolved.id, resolved.name
 
         success = api.delete_project(project_id=project_id)
-        display_name = f"'{project_name}' (ID: {project_id})" if project_name else f"ID: {project_id}"
+        display_name = message("display.named", name=project_name, id=project_id) if project_name else message("display.id_only", id=project_id)
 
         if success:
-            return f"🗑️ Proje başarıyla silindi: {display_name}."
+            return message("project.deleted", target=display_name)
         else:
-            return f"⚠️ Proje silinemedi: {display_name}."
+            return message("project.delete_unconfirmed", target=display_name)
+    except MissingMessageError:
+        raise
     except Exception as e:
         logger.error(
             "Failed to delete project in Todoist (identifier=%s, error_type=%s)",

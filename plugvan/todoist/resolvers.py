@@ -10,11 +10,20 @@ from typing import Optional, Union
 
 from todoist_api_python.api import TodoistAPI
 
+from plugvan.todoist.messages import MissingMessageError, message
+
 logger = logging.getLogger("todoist_mcp")
 
 MAX_AMBIGUOUS_CANDIDATES = 5
 INBOX_ALIASES = frozenset({"gelen kutusu", "inbox", "gelenkutusu", "inbox/gelen kutusu"})
-INBOX_DISPLAY_NAME = "Gelen Kutusu"
+# The query create_task resolves when no project name is given (an Inbox alias). Kept apart
+# from the localized display name so the output language never changes what it resolves to.
+INBOX_QUERY = "Gelen Kutusu"
+
+
+def inbox_display_name() -> str:
+    """The Inbox name shown when an Inbox alias matches but no Inbox is listed, in the output language."""
+    return message("inbox.display_name")
 
 
 @dataclass(frozen=True)
@@ -69,10 +78,10 @@ class LookupFailed:
 Resolution = Union[Found, NotFound, Ambiguous, LookupFailed]
 
 
-def ambiguous_message(result: Ambiguous, noun: str, shown_query: Optional[str] = None) -> str:
+def ambiguous_message(result: Ambiguous, message_key: str, shown_query: Optional[str] = None) -> str:
     """User-facing ambiguity error: the query, then one '• name (ID)' line per candidate."""
     shown = result.query if shown_query is None else shown_query
-    lines = [f"⚠️ '{shown}' için birden fazla {noun} bulundu; lütfen {noun} ID'sini kullanın:"]
+    lines = [message(message_key, query=shown)]
     lines.extend(f"• {line}" for line in result.candidate_lines())
     return "\n".join(lines)
 
@@ -157,6 +166,8 @@ def resolve_project(
 
     try:
         projects = _get_all_projects(api)
+    except MissingMessageError:
+        raise
     except Exception as e:
         return _lookup_failed("projects", e)
 
@@ -170,7 +181,7 @@ def resolve_project(
         if inbox:
             return inbox
         alias_named = _pick(query, [p for p in projects if _normalize(getattr(p, "name", "")) in INBOX_ALIASES])
-        return alias_named or Found(None, INBOX_DISPLAY_NAME)
+        return alias_named or Found(None, inbox_display_name())
 
     exact = _pick(query, [p for p in projects if _normalize(getattr(p, "name", "")) == normalized])
     if exact:
@@ -195,6 +206,8 @@ def resolve_section(api: TodoistAPI, name_or_id: str, *, project_id: Optional[st
 
     try:
         sections = _get_all_sections(api, project_id=project_id)
+    except MissingMessageError:
+        raise
     except Exception as e:
         return _lookup_failed("sections", e)
 
@@ -212,6 +225,8 @@ def resolve_label(api: TodoistAPI, name_or_id: str) -> Resolution:
 
     try:
         labels = _get_all_labels(api)
+    except MissingMessageError:
+        raise
     except Exception as e:
         return _lookup_failed("labels", e)
 

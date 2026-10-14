@@ -8,7 +8,7 @@ import os
 import subprocess
 import sys
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import call, patch
 
 from plugvan.todoist import client
 
@@ -24,7 +24,11 @@ def test_mcp_client_receives_fake_test_token():
     with patch.object(client, "TodoistAPI") as mock_sdk:
         api = client.get_api_client()
 
-    mock_sdk.assert_called_once_with(FAKE_TODOIST_API_TOKEN)
+    # Booleans with fixed messages: mock's own failure output would print the token it received.
+    called_once = mock_sdk.call_count == 1
+    token_is_fake = mock_sdk.call_args == call(FAKE_TODOIST_API_TOKEN)
+    assert called_once, "the Todoist SDK client was not built exactly once"
+    assert token_is_fake, "the Todoist SDK client did not receive the conftest fake token"
     assert api is mock_sdk.return_value
 
 
@@ -47,6 +51,8 @@ def test_real_looking_token_in_shell_never_reaches_tests():
         timeout=120,
     )
 
-    assert result.returncode == 0, result.stdout[-3000:]
-    assert "1 passed" in result.stdout, result.stdout[-3000:]
-    assert REAL_LOOKING_TODOIST_API_TOKEN not in result.stdout
+    # Booleans with fixed messages, so a failure never dumps the inner run's output.
+    inner_passed = result.returncode == 0 and "1 passed" in result.stdout
+    token_leaked = REAL_LOOKING_TODOIST_API_TOKEN in result.stdout
+    assert inner_passed, "the inner pytest run did not pass; rerun it directly to see why"
+    assert not token_leaked, "the real-looking token appeared in the inner pytest output"

@@ -122,10 +122,12 @@ cp .env.example .env
 Edit your `.env` file with your own credentials:
 ```env
 TODOIST_API_TOKEN=your_todoist_api_token_here
+# Optional: PLUGVAN_LANG=tr
 ```
 
 **How to obtain your credentials:**
 - **`TODOIST_API_TOKEN`**: Log into [Todoist Web](https://todoist.com) ➔ Settings ➔ **Integrations** ➔ **Developer** ➔ Copy your API token.
+- **`PLUGVAN_LANG`** (optional): the language of tool results, `en` (default) or `tr` for Turkish.
 
 > [!CAUTION]
 > **🔒 Security Considerations:**
@@ -154,6 +156,7 @@ Integrate Todoist directly into your Claude Desktop application.
   }
 }
 ```
+   For Turkish tool results, add `"PLUGVAN_LANG": "tr"` to the `env` block.
 3. Restart Claude Desktop. You can now prompt Claude:
    - *"List my open tasks in Todoist for today."*
    - *"Create a p2 task 'Prepare weekly report' due tomorrow at 14:00."*
@@ -231,10 +234,12 @@ cp .env.example .env
 `.env` dosyanızı açıp kendi token ve anahtarlarınızı girin:
 ```env
 TODOIST_API_TOKEN=kendi_todoist_api_tokeniniz
+# İsteğe bağlı: PLUGVAN_LANG=tr
 ```
 
 **Anahtarlarınızı Alma:**
 - **`TODOIST_API_TOKEN`**: [Todoist Web](https://todoist.com) ➔ Ayarlar ➔ **Entegrasyonlar** ➔ **Geliştirici** ➔ API belirtecinizi kopyalayın.
+- **`PLUGVAN_LANG`** (isteğe bağlı): araç sonuçlarının dili; `en` (varsayılan) veya Türkçe için `tr`.
 
 > [!CAUTION]
 > **🔒 Güvenlik Uyarıları:**
@@ -263,6 +268,7 @@ Claude Desktop uygulamanıza Todoist yeteneği kazandırmak için:
   }
 }
 ```
+   Araç sonuçlarını Türkçe almak için `env` bloğuna `"PLUGVAN_LANG": "tr"` ekleyin.
 3. Claude Desktop'ı tamamen kapatıp yeniden başlatın. Artık Claude ile sohbet ederken doğrudan Todoist'e görev ekleyebilir, görevlerinizi listeleyebilir veya tamamlayabilirsiniz:
    - *"Bugün için tanımlı Todoist görevlerimi listele."*
    - *"Yarın saat 15:00'e 'Proje Raporunu Teslim Et' başlıklı p2 görev ekle."*

@@ -27,6 +27,8 @@ There is no configured linter/formatter in this repo (no ruff/black/mypy config)
 
 Required environment variable (`.env`, see `.env.example`): `TODOIST_API_TOKEN`. `client.get_api_client()` reads it from the environment; `python -m plugvan.todoist` loads `.env` first with `load_dotenv()`.
 
+Optional: `PLUGVAN_LANG` selects the output language of tool results, `en` (default) or `tr`. It is read on every call (`language.current_language()`); an unsupported value falls back to `en` and is logged once.
+
 ## Architecture
 
 This project has a single entry point: `plugvan.todoist` (the `plugvan/todoist/` package, `python -m plugvan.todoist`), the tool surface exposed to Claude Desktop; a FastMCP server running over STDIO. It talks to Todoist through the official `todoist-api-python` SDK and has its own name-resolution/validation logic.
@@ -40,6 +42,7 @@ The top-level `plugvan/` package is empty (no multi-app server code yet); the To
 - `tools/` — one module per domain (`tasks`, `projects`, `sections`, `labels`, `comments`); tools are plain functions without decorators. The deadline/HTTP error helpers live only in `tasks.py`.
 - `client.py` — `get_api_client()`; builds a `TodoistAPI` from `TODOIST_API_TOKEN` on every call. Tools call it through the module attribute (`client.get_api_client()`), so in tests the **single patch target** is `plugvan.todoist.client.get_api_client`.
 - `limits.py` — the `MAX_*_LENGTH` constants. `resolvers.py` — `resolve_project` / `resolve_section` / `resolve_label`, four result types (`Found`, `NotFound`, `Ambiguous`, `LookupFailed`), `ambiguous_message`, `_normalize`.
+- `language.py` — `current_language()` (reads `PLUGVAN_LANG`). `messages.py` — the message catalog: one dict per language (`CATALOGS["en"]`, `CATALOGS["tr"]`) with the same keys and `str.format` placeholders, looked up with `message(key, **params)`. The lookup is strict: a key missing in the selected language raises `MissingMessageError`, and every broad `except Exception` in the package re-raises it first (`except MissingMessageError: raise`), so it is never turned into a generic failure message.
 - `__main__.py` — the entry point: `load_dotenv()` and `logging.basicConfig(...)` run only here. The logger name is `"todoist_mcp"` in all modules.
 
 Import side effects: our modules have no import side effects. However, when `server.py` is imported, the SDK's `FastMCP()` constructor adds a log handler (`RichHandler`) to the root logger; this comes from the SDK, not from our code.
@@ -48,7 +51,7 @@ Each tool independently:
 1. Validates inputs against the `MAX_*_LENGTH` constants in `limits.py`.
 2. Resolves human-readable names to IDs with `resolve_project` / `resolve_section` / `resolve_label` (including Turkish-aware normalization via `_normalize`). Each resolution returns one of four results and the tool handles each one separately; nothing is written in the failure cases:
    - `Found(id, name)`: a single match; messages show `name` (the actual name in Todoist), not the user's input. `id=None` only happens when the Inbox alias is used while there is no Inbox in the list.
-   - `NotFound(query)`: a `⚠️ … bulunamadı` message, no candidate list.
+   - `NotFound(query)`: a `⚠️ … not found` message, no candidate list.
    - `Ambiguous(query, candidates, has_more)`: via `ambiguous_message`, at most 5 `name (ID)` candidates and a suggestion to use the ID.
    - `LookupFailed(error_type)`: the tool's generic `❌ … Check server logs` message; only `error_type` is written to the log, never the exception text or the HTTP response.
 
@@ -66,9 +69,9 @@ The decision to give tool names an application prefix (such as `todoist_create_t
 ### Tests
 
 `tests/` mirrors the module structure and mocks all network/API calls — no real Todoist calls are made.
-- `tests/todoist/` — the `plugvan.todoist` tests, mirroring the package one-to-one: `test_tasks.py`, `test_projects.py`, `test_sections.py`, `test_labels.py`, `test_comments.py`, `test_resolvers.py`, `test_server_surface.py`. It has its own `__init__.py` (imported as `tests.todoist`).
+- `tests/todoist/` — the `plugvan.todoist` tests, mirroring the package one-to-one: `test_tasks.py`, `test_projects.py`, `test_sections.py`, `test_labels.py`, `test_comments.py`, `test_resolvers.py`, `test_server_surface.py`; plus `test_language.py` (language selection), `test_messages.py` (catalog completeness and the strict lookup) and `test_turkish_output.py` (a small set of exact Turkish messages under `PLUGVAN_LANG=tr`; the rest of the suite asserts English). It has its own `__init__.py` (imported as `tests.todoist`).
 - `tests/todoist/helpers.py` — lightweight `MockProject`/`MockLabel`/`MockSection`/`MockComment`/`MockTask` classes that mirror the SDK's object attributes instead of mocking the SDK client wholesale, `_make_http_status_error`, and `write_call_count` (counts all write calls on the mocked SDK; every public method other than `get_`/`filter_`/`search_` counts as a write). Because it does not start with `test_`, pytest does not collect it.
-- The others are at the root: `conftest.py` (sets a fake `TODOIST_API_TOKEN` and installs the autouse network guard that blocks non-loopback connections), `test_credentials_isolation.py` (a real token in the shell never reaches a test) and `test_network_guard.py` (the guard's own tests).
+- The others are at the root: `conftest.py` (sets a fake `TODOIST_API_TOKEN`, removes `PLUGVAN_LANG` so every test starts from the default language, and installs the autouse network guard that blocks non-loopback connections), `test_credentials_isolation.py` (a real token in the shell never reaches a test), `test_language_isolation.py` (a `PLUGVAN_LANG` in the shell never reaches a test) and `test_network_guard.py` (the guard's own tests).
 
 **Surface snapshot rule:** `tests/fixtures/todoist_mcp_tool_surface.json` is a one-time recording of the MCP tool surface (22 tools: name, description, `inputSchema`, `outputSchema`) taken from the old module before the move; `test_server_surface.py` compares the live server against it by name (order-independent). The fixture is **never regenerated** unless there is a deliberate behavior change; changing a tool's description/parameter breaks the test, and updating the fixture means knowingly accepting that change.
 

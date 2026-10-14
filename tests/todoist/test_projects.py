@@ -43,12 +43,12 @@ def test_get_project_success(mock_get_client):
 
     result = get_project(project_id="proj_777")
 
-    assert "📁 Proje Detayları (ID: proj_777)" in result
-    assert "İsim: İş Projesi" in result
-    assert "Renk: berry_red" in result
-    assert "Üst Proje ID (parent_id): proj_parent_1" in result
-    assert "Favori mi: Evet" in result
-    assert "Görünüm Stili: board" in result
+    assert "📁 Project Details (ID: proj_777)" in result
+    assert "Name: İş Projesi" in result
+    assert "Color: berry_red" in result
+    assert "Parent Project ID (parent_id): proj_parent_1" in result
+    assert "Favorite: Yes" in result
+    assert "View Style: board" in result
     mock_api.get_project.assert_called_once_with(project_id="proj_777")
 
 
@@ -59,10 +59,10 @@ def test_get_project_without_parent_shows_top_level(mock_get_client):
     mock_api.get_project.return_value = MockProject("proj_888", "Kişisel")
 
     result = get_project(project_id="proj_888")
-    assert "Üst Proje ID (parent_id): Yok (üst seviye proje)" in result
-    assert "Renk: Yok" in result
-    assert "Favori mi: Hayır" in result
-    assert "Görünüm Stili: Belirlenmedi" in result
+    assert "Parent Project ID (parent_id): None (top-level project)" in result
+    assert "Color: None" in result
+    assert "Favorite: No" in result
+    assert "View Style: Not set" in result
 
 
 def test_get_project_empty_id():
@@ -102,10 +102,10 @@ def test_create_project_success(mock_get_client):
     mock_api.add_project.return_value = MockProject("proj_new_1", "Yeni Proje", color="berry_red")
 
     result = create_project(name="Yeni Proje", color="berry_red")
-    assert "✅ Proje başarıyla oluşturuldu!" in result
+    assert "✅ Project created successfully!" in result
     assert "ID: proj_new_1" in result
-    assert "İsim: Yeni Proje" in result
-    assert "Renk: berry_red" in result
+    assert "Name: Yeni Proje" in result
+    assert "Color: berry_red" in result
     mock_api.add_project.assert_called_once_with(name="Yeni Proje", color="berry_red")
 
 
@@ -121,10 +121,10 @@ def test_create_project_with_parent_success(mock_get_client):
         name="Alt Kategori",
         parent_project_name_or_id="Ana Kategori",
     )
-    assert "✅ Proje başarıyla oluşturuldu!" in result
+    assert "✅ Project created successfully!" in result
     assert "ID: child_456" in result
-    assert "İsim: Alt Kategori" in result
-    assert "Üst Proje: 'Ana Kategori' (ID: parent_123)" in result
+    assert "Name: Alt Kategori" in result
+    assert "Parent Project: 'Ana Kategori' (ID: parent_123)" in result
     mock_api.add_project.assert_called_once_with(name="Alt Kategori", parent_id="parent_123")
 
 
@@ -135,7 +135,7 @@ def test_create_project_parent_not_found(mock_get_client):
     mock_api.get_projects.return_value = [[]]
 
     result = create_project(name="Alt Kategori", parent_project_name_or_id="Olmayan Proje")
-    assert "⚠️ Belirtilen üst proje bulunamadı: 'Olmayan Proje'." in result
+    assert "⚠️ Parent project not found: 'Olmayan Proje'." in result
 
 
 def test_create_project_empty_name():
@@ -180,9 +180,9 @@ def test_update_project_name_only(mock_get_client):
 
     result = update_project(project_name_or_id="proj_1", name="Yeni İsim")
 
-    assert "✅ Proje başarıyla güncellendi (ID: proj_1)!" in result
-    assert "İsim: 'Yeni İsim'" in result
-    assert "Renk:" not in result
+    assert "✅ Project updated successfully (ID: proj_1)!" in result
+    assert "Name: 'Yeni İsim'" in result
+    assert "Color:" not in result
     mock_api.update_project.assert_called_once_with(project_id="proj_1", name="Yeni İsim")
 
 
@@ -196,9 +196,9 @@ def test_update_project_color_only(mock_get_client):
 
     result = update_project(project_name_or_id="Proje İsmi", color="teal")
 
-    assert "✅ Proje başarıyla güncellendi (ID: proj_2)!" in result
-    assert "Renk: 'teal'" in result
-    assert "İsim:" not in result
+    assert "✅ Project updated successfully (ID: proj_2)!" in result
+    assert "Color: 'teal'" in result
+    assert "Name:" not in result
     mock_api.update_project.assert_called_once_with(project_id="proj_2", color="teal")
 
 
@@ -212,16 +212,16 @@ def test_update_project_name_and_color(mock_get_client):
 
     result = update_project(project_name_or_id="proj_3", name="Güncel İsim", color="mint_green")
 
-    assert "✅ Proje başarıyla güncellendi (ID: proj_3)!" in result
-    assert "İsim: 'Güncel İsim'" in result
-    assert "Renk: 'mint_green'" in result
+    assert "✅ Project updated successfully (ID: proj_3)!" in result
+    assert "Name: 'Güncel İsim'" in result
+    assert "Color: 'mint_green'" in result
     mock_api.update_project.assert_called_once_with(project_id="proj_3", name="Güncel İsim", color="mint_green")
 
 
 def test_update_project_no_fields_provided():
     """Hiçbir alan verilmeden çağrıldığında API'ye hiç gitmeden uyarı dönmeli (no-op)."""
     result = update_project(project_name_or_id="proj_4")
-    assert "⚠️ Güncellenecek hiçbir alan belirtilmedi" in result
+    assert "⚠️ No fields to update were specified" in result
 
 
 def test_update_project_empty_identifier():
@@ -236,7 +236,7 @@ def test_update_project_not_found(mock_get_client):
     mock_api.get_projects.return_value = [[]]
 
     result = update_project(project_name_or_id="Olmayan Proje", name="Yeni İsim")
-    assert "⚠️ Güncellenecek proje bulunamadı: 'Olmayan Proje'." in result
+    assert "⚠️ Project to update not found: 'Olmayan Proje'." in result
     mock_api.update_project.assert_not_called()
 
 
@@ -266,7 +266,7 @@ def test_delete_project_by_id_success(mock_get_client):
     mock_api.delete_project.return_value = True
 
     result = delete_project(project_name_or_id="proj_123")
-    assert "🗑️ Proje başarıyla silindi: 'Eski Proje' (ID: proj_123)." in result
+    assert "🗑️ Project deleted successfully: 'Eski Proje' (ID: proj_123)." in result
     mock_api.delete_project.assert_called_once_with(project_id="proj_123")
 
 
@@ -279,7 +279,7 @@ def test_delete_project_by_name_success(mock_get_client):
     mock_api.delete_project.return_value = True
 
     result = delete_project(project_name_or_id="Silinecek Proje")
-    assert "🗑️ Proje başarıyla silindi: 'Silinecek Proje' (ID: proj_456)." in result
+    assert "🗑️ Project deleted successfully: 'Silinecek Proje' (ID: proj_456)." in result
     mock_api.delete_project.assert_called_once_with(project_id="proj_456")
 
 
@@ -290,7 +290,7 @@ def test_delete_project_not_found(mock_get_client):
     mock_api.get_projects.return_value = [[]]
 
     result = delete_project(project_name_or_id="Nonexistent")
-    assert "⚠️ Silinecek proje bulunamadı: 'Nonexistent'." in result
+    assert "⚠️ Project to delete not found: 'Nonexistent'." in result
 
 
 def test_delete_project_empty_identifier():
@@ -311,7 +311,7 @@ def test_delete_project_partial_name_does_not_delete_other_project(mock_get_clie
 
     result = delete_project(project_name_or_id="Work")
 
-    assert result == "⚠️ Silinecek proje bulunamadı: 'Work'."
+    assert result == "⚠️ Project to delete not found: 'Work'."
     mock_api.delete_project.assert_not_called()
 
 
@@ -323,7 +323,7 @@ def test_update_project_partial_name_is_not_found(mock_get_client):
 
     result = update_project(project_name_or_id="Work", name="Yeni")
 
-    assert result == "⚠️ Güncellenecek proje bulunamadı: 'Work'."
+    assert result == "⚠️ Project to update not found: 'Work'."
     assert write_call_count(mock_api) == 0
 
 
@@ -333,8 +333,8 @@ def test_delete_and_update_project_ignore_inbox_alias(mock_get_client):
     mock_get_client.return_value = mock_api
     mock_api.get_projects.return_value = [[MockProject("inbox_1", "Gelen Kutusu", is_inbox=True)]]
 
-    assert delete_project(project_name_or_id="Inbox") == "⚠️ Silinecek proje bulunamadı: 'Inbox'."
-    assert update_project(project_name_or_id="Inbox", name="X") == "⚠️ Güncellenecek proje bulunamadı: 'Inbox'."
+    assert delete_project(project_name_or_id="Inbox") == "⚠️ Project to delete not found: 'Inbox'."
+    assert update_project(project_name_or_id="Inbox", name="X") == "⚠️ Project to update not found: 'Inbox'."
     assert write_call_count(mock_api) == 0
 
 
@@ -360,7 +360,7 @@ def test_delete_project_duplicate_names_are_ambiguous(mock_get_client):
     result = delete_project(project_name_or_id="Work")
 
     assert result == (
-        "⚠️ 'Work' için birden fazla proje bulundu; lütfen proje ID'sini kullanın:\n"
+        "⚠️ Multiple projects found for 'Work'; please use the project ID:\n"
         "• Work (p1)\n"
         "• work (p2)"
     )
@@ -376,7 +376,7 @@ def test_update_project_ambiguity_caps_candidates_at_five(mock_get_client):
     result = update_project(project_name_or_id="Work", color="teal")
 
     lines = result.splitlines()
-    assert lines[0].startswith("⚠️ 'Work' için birden fazla proje bulundu")
+    assert lines[0].startswith("⚠️ Multiple projects found for 'Work'")
     assert lines[1:] == [f"• Work (p{i})" for i in range(1, 6)] + ["• …"]
     assert write_call_count(mock_api) == 0
 
@@ -414,7 +414,7 @@ def test_create_project_ambiguous_parent_creates_nothing(mock_get_client):
     result = create_project(name="Alt", parent_project_name_or_id="Work")
 
     assert result == (
-        "⚠️ 'Work' için birden fazla proje bulundu; lütfen proje ID'sini kullanın:\n"
+        "⚠️ Multiple projects found for 'Work'; please use the project ID:\n"
         "• Homework (p1)\n"
         "• Workshop (p2)"
     )
@@ -430,7 +430,7 @@ def test_create_project_unique_partial_parent_shows_resolved_name(mock_get_clien
 
     result = create_project(name="Alt", parent_project_name_or_id="ana kat")
 
-    assert "Üst Proje: 'Ana Kategori' (ID: p1)" in result
+    assert "Parent Project: 'Ana Kategori' (ID: p1)" in result
     mock_api.add_project.assert_called_once_with(name="Alt", parent_id="p1")
 
 
@@ -442,12 +442,12 @@ def test_create_project_inbox_alias_parent(mock_get_client):
 
     mock_api.get_projects.return_value = [[MockProject("inbox_1", "Inbox", is_inbox=True)]]
     listed = create_project(name="Alt", parent_project_name_or_id="Gelen Kutusu")
-    assert "Üst Proje: 'Inbox' (ID: inbox_1)" in listed
+    assert "Parent Project: 'Inbox' (ID: inbox_1)" in listed
 
     mock_api.add_project.reset_mock()
     mock_api.get_projects.return_value = [[MockProject("p2", "Ev")]]
     unlisted = create_project(name="Alt", parent_project_name_or_id="Gelen Kutusu")
-    assert unlisted == "⚠️ Belirtilen üst proje bulunamadı: 'Gelen Kutusu'."
+    assert unlisted == "⚠️ Parent project not found: 'Gelen Kutusu'."
     assert write_call_count(mock_api) == 0
 
 
@@ -459,7 +459,7 @@ def test_create_project_parent_not_found_lists_no_candidates(mock_get_client):
 
     result = create_project(name="Alt", parent_project_name_or_id="Okul")
 
-    assert result == "⚠️ Belirtilen üst proje bulunamadı: 'Okul'."
+    assert result == "⚠️ Parent project not found: 'Okul'."
     assert write_call_count(mock_api) == 0
 
 
@@ -494,9 +494,9 @@ def test_list_projects_hierarchical(mock_get_client):
     mock_api.get_projects.return_value = [[p1, p2, p3]]
 
     result = list_projects()
-    assert "📁 Mevcut Projeler (Toplam: 3):" in result
-    assert "1. [p1] Gelen Kutusu [Gelen Kutusu]" in result
-    assert "2. [p2] İş, Renk: berry_red" in result
+    assert "📁 Available Projects (Total: 3):" in result
+    assert "1. [p1] Gelen Kutusu [Inbox]" in result
+    assert "2. [p2] İş, Color: berry_red" in result
     assert "└── [p3] Alt Görevler" in result
 
 
@@ -507,4 +507,4 @@ def test_list_projects_empty(mock_get_client):
     mock_api.get_projects.return_value = [[]]
 
     result = list_projects()
-    assert "ℹ️ Todoist hesabınızda herhangi bir proje bulunamadı." in result
+    assert "ℹ️ No projects found in your Todoist account." in result
