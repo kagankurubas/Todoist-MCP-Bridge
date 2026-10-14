@@ -204,6 +204,15 @@ CATALOGS: dict[str, dict[str, str]] = {
         "label.display.named": "'@{name}' (ID: {id})",
         "label.deleted": "🗑️ Label deleted successfully: {target}.",
         "label.delete_unconfirmed": "⚠️ The label could not be deleted: {target}.",
+        # Comments
+        "invalid.comment_content_empty": "❌ Invalid input: Comment content cannot be empty or whitespace.",
+        "invalid.comment_content_too_long": "❌ Invalid input: Comment content exceeds maximum length of {limit} characters.",
+        "comment.added.posted_line": "\n• Date: {posted_at}",
+        "comment.added": "💬 Comment added successfully!\n• Comment ID: {id}\n• Task ID: {task_id}\n• Content: {content}{posted_line}",
+        "comment.add_failed": "❌ Failed to add comment to task (ID: {task_id}) in Todoist. Check server logs for details.",
+        "comment.list.empty": "ℹ️ No comments or notes found for the task (ID: {task_id}).",
+        "comment.list.header": "💬 Task Comments (Task ID: {task_id}, Total: {count}):",
+        "comment.list_failed": "❌ Failed to retrieve comments for task (ID: {task_id}) from Todoist. Check server logs for details.",
     },
     "tr": {
         # Shared: name resolution
