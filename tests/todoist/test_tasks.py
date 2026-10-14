@@ -112,7 +112,7 @@ def test_create_task_inbox_default(mock_get_client):
         priority=1,
     )
 
-    result = create_task(content="General Task", project_name="Gelen Kutusu")
+    result = create_task(content="General Task")
     assert "✅ Task created successfully!" in result
     assert "ID: task_002" in result
     mock_api.add_task.assert_called_once_with(

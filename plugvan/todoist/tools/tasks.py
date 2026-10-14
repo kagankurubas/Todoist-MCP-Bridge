@@ -65,11 +65,11 @@ def create_task(
     project_name: Annotated[
         str,
         Field(
-            default="Gelen Kutusu",
+            default="Inbox",
             max_length=MAX_PROJECT_NAME_LENGTH,
-            description="Target Todoist project name (defaults to 'Gelen Kutusu' / Inbox).",
+            description="Target Todoist project name (defaults to 'Inbox').",
         ),
-    ] = "Gelen Kutusu",
+    ] = "Inbox",
     due_string: Annotated[
         Optional[str],
         Field(
@@ -107,7 +107,7 @@ def create_task(
         Field(
             default=None,
             max_length=MAX_TASK_ID_LENGTH,
-            description="Bu görevi belirtilen Todoist görev ID'sinin alt görevi (subtask) yapar (opsiyonel).",
+            description="Makes this task a subtask of the Todoist task with the given ID (optional).",
         ),
     ] = None,
     deadline_date: Annotated[
@@ -128,7 +128,7 @@ def create_task(
     Args:
         content: Task title/content (must not be empty, max 500 chars).
         description: Task notes or description (max 4096 chars).
-        project_name: Target project name (max 120 chars, defaults to 'Gelen Kutusu').
+        project_name: Target project name (max 120 chars, defaults to 'Inbox').
         due_string: Natural language date string (e.g. 'tomorrow at 14:00', max 150 chars).
         priority: Priority integer strictly between 1 (normal) and 4 (urgent).
         labels: Optional list of label strings to attach to the task.
