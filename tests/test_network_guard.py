@@ -78,7 +78,7 @@ def test_swallowed_network_attempt_still_fails_the_test(tmp_path):
     (tmp_path / "conftest.py").write_text(CONFTEST.read_text(encoding="utf-8"), encoding="utf-8")
     (tmp_path / "test_inner.py").write_text(
         "import socket\n"
-        "import requests\n"
+        "import urllib.request\n"
         "\n"
         "def test_swallowed_socket_connect():\n"
         "    try:\n"
@@ -88,7 +88,8 @@ def test_swallowed_network_attempt_still_fails_the_test(tmp_path):
         "\n"
         "def test_swallowed_http_request():\n"
         "    try:\n"
-        "        requests.get('https://api.todoist.com/api/v1/projects', timeout=1)\n"
+        "        opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))\n"
+        "        opener.open('http://192.0.2.1:80/api/v1/projects', timeout=1)\n"
         "    except Exception:\n"
         "        pass\n"
         "\n"
@@ -113,7 +114,7 @@ def test_swallowed_network_attempt_still_fails_the_test(tmp_path):
     assert "FAILED test_inner.py::test_swallowed_socket_connect" in result.stdout
     assert "FAILED test_inner.py::test_swallowed_http_request" in result.stdout
     assert "192.0.2.1:443" in result.stdout
-    assert "api.todoist.com:443" in result.stdout
+    assert "192.0.2.1:80" in result.stdout
 
 
 # =====================================================================
