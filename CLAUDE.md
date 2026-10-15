@@ -20,30 +20,33 @@ pytest tests/todoist/test_tasks.py
 pytest tests/todoist/test_tasks.py::test_create_task_success -v
 
 # Run the MCP server directly (normally launched by Claude Desktop over STDIO)
-python -m plugvan.todoist
+python -m plugvan.todoist   # checkout path: reads .env
+plugvan-mcp todoist        # console script: never reads .env
+plugvan-mcp --version
 ```
 
 There is no configured linter/formatter in this repo (no ruff/black/mypy config) — do not act as if there were one.
 
-Required environment variable (`.env`, see `.env.example`): `TODOIST_API_TOKEN`. `client.get_api_client()` reads it from the environment; `python -m plugvan.todoist` loads `.env` first with `load_dotenv()`.
+Required environment variable (`.env`, see `.env.example`): `TODOIST_API_TOKEN`. `client.get_api_client()` reads it from the environment. Only `python -m plugvan.todoist` loads `.env` (with `load_dotenv()`, which does not override variables that are already set); the `plugvan-mcp todoist` console script never reads `.env` and takes its configuration from the environment, i.e. the `env` block of the MCP client config.
 
 Optional: `PLUGVAN_LANG` selects the output language of tool results, `en` (default) or `tr`. It is read on every call (`language.current_language()`); an unsupported value falls back to `en` and is logged once.
 
 ## Architecture
 
-This project has a single entry point: `plugvan.todoist` (the `plugvan/todoist/` package, `python -m plugvan.todoist`), the tool surface exposed to Claude Desktop; a FastMCP server running over STDIO. It talks to Todoist through the official `todoist-api-python` SDK and has its own name-resolution/validation logic.
+This project has one integration, `plugvan.todoist` (the `plugvan/todoist/` package), the tool surface exposed to Claude Desktop; a FastMCP server running over STDIO. It has two entry points that both call `plugvan.todoist.run()`: `python -m plugvan.todoist` and the `plugvan-mcp todoist` console script. It talks to Todoist through the official `todoist-api-python` SDK and has its own name-resolution/validation logic.
 
 Project-name resolution lives in one place, `plugvan/todoist/resolvers.py::resolve_project` (case-insensitive, Unicode-normalized, with Inbox alias, single-candidate partial match and ambiguity layers). MCP tools return an error on an unknown name; an unknown name never falls back to the Inbox.
 
 ### `plugvan.todoist` internals
 
-The top-level `plugvan/` package is empty (no multi-app server code yet); the Todoist integration lives under `plugvan/todoist/`:
+The top-level `plugvan/` package holds only `cli.py`, the `plugvan-mcp` console script (`main(argv) -> int`, declared in `pyproject.toml` `[project.scripts]`): `plugvan-mcp <integration>` with argparse subcommands (today only `todoist`), `--version` from package metadata (`unknown` when not installed), usage errors on stderr with exit 2 and nothing on stdout. It never reads `.env` and never imports `plugvan.todoist.__main__`. The Todoist integration lives under `plugvan/todoist/`:
+- `__init__.py` — `configure_logging()` (stderr, INFO; `logging.basicConfig`) and `run()`, the single run function for both entry points: it configures logging, **then** imports `server.py` (the SDK's `FastMCP()` constructor calls `logging.basicConfig` too, and the first configuration wins) and runs the server over STDIO. In CLI tests `plugvan.todoist.run` is the single patch target.
 - `server.py` — the `FastMCP("Todoist")` object; the 22 tools are registered here explicitly with `mcp.add_tool(...)` **in a fixed order** (the order is part of the published surface, do not change it).
 - `tools/` — one module per domain (`tasks`, `projects`, `sections`, `labels`, `comments`); tools are plain functions without decorators. The deadline/HTTP error helpers live only in `tasks.py`.
 - `client.py` — `get_api_client()`; builds a `TodoistAPI` from `TODOIST_API_TOKEN` on every call. Tools call it through the module attribute (`client.get_api_client()`), so in tests the **single patch target** is `plugvan.todoist.client.get_api_client`.
 - `limits.py` — the `MAX_*_LENGTH` constants. `resolvers.py` — `resolve_project` / `resolve_section` / `resolve_label`, four result types (`Found`, `NotFound`, `Ambiguous`, `LookupFailed`), `ambiguous_message`, `_normalize`.
 - `language.py` — `current_language()` (reads `PLUGVAN_LANG`). `messages.py` — the message catalog: one dict per language (`CATALOGS["en"]`, `CATALOGS["tr"]`) with the same keys and `str.format` placeholders, looked up with `message(key, **params)`. The lookup is strict: a key missing in the selected language raises `MissingMessageError`, and every broad `except Exception` in the package re-raises it first (`except MissingMessageError: raise`), so it is never turned into a generic failure message.
-- `__main__.py` — the entry point: `load_dotenv()` and `logging.basicConfig(...)` run only here. The logger name is `"todoist_mcp"` in all modules.
+- `__main__.py` — the `python -m plugvan.todoist` entry point and the only place that reads `.env`: under `if __name__ == "__main__"` it calls `configure_logging()`, `load_dotenv()` (default arguments, so the MCP client's `env` block still wins) and `run()`. The logger name is `"todoist_mcp"` in all modules.
 
 Import side effects: our modules have no import side effects. However, when `server.py` is imported, the SDK's `FastMCP()` constructor adds a log handler (`RichHandler`) to the root logger; this comes from the SDK, not from our code.
 

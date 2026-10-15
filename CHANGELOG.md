@@ -5,6 +5,12 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Changed
+- **`.env` is read only by `python -m plugvan.todoist` (#59).** The new
+  `plugvan-mcp todoist` console script never reads `.env`; it takes
+  `TODOIST_API_TOKEN` and `PLUGVAN_LANG` from the environment, i.e. the
+  `env` block of the MCP client config, which is the supported way to
+  configure it. `python -m plugvan.todoist` keeps loading `.env` as
+  before, and variables from the client's `env` block still win over it.
 - **Breaking: tool results are now in English by default (#37).**
   - Every MCP tool result and error message now defaults to English. The
     new optional `PLUGVAN_LANG` environment variable selects the language:
@@ -56,6 +62,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   with `"PYTHONPATH": "<REPO_PATH>"` in `env`, then restart Claude Desktop.
 
 ### Added
+- `plugvan-mcp` console script (#59): `plugvan-mcp todoist` starts the
+  Todoist MCP server over STDIO, like `python -m plugvan.todoist`.
+  `plugvan-mcp --version` prints the installed version. A missing or
+  unknown integration prints usage on stderr and exits with status 2.
 - `pyproject.toml`: the project is now the Python distribution `plugvan-mcp`
   (import package `plugvan`, Python 3.10+), and `pyproject.toml` is the
   single source of its dependencies. Test-only dependencies are in the
