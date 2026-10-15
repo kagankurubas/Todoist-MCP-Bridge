@@ -123,3 +123,28 @@ jobs:
           path: dist/
           if-no-files-found: error
           retention-days: 7
+
+  # Installs the very wheel the ubuntu package job built, checked and tested (downloaded, never
+  # rebuilt; download-artifact fails on a digest mismatch) and runs the installed-mode tests on
+  # Windows. Compare the wheel's sha256 printed here with the ubuntu job's log.
+  package-windows:
+    name: package (windows-2025, Python 3.14)
+    needs: package-ubuntu
+    runs-on: windows-2025
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: dist
+          path: dist
+
+      - name: Install the wheel and run the installed-mode tests
+        run: python scripts/run_installed_tests.py dist

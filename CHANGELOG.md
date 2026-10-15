@@ -5,6 +5,11 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Changed
+- The sdist now contains only what is needed to build and describe the
+  package: `plugvan/`, `pyproject.toml`, `PKG-INFO`, `README.md`, `LICENSE`,
+  `CHANGELOG.md` and `.gitignore` (which hatchling always adds). Tests,
+  docs, CI files, `CLAUDE.md` and `.env.example` are no longer included
+  (#61). The wheel is unchanged.
 - **`.env` is read only by `python -m plugvan.todoist` (#59).** The new
   `plugvan-mcp todoist` console script never reads `.env`; it takes
   `TODOIST_API_TOKEN` and `PLUGVAN_LANG` from the environment, i.e. the
@@ -62,6 +67,13 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   with `"PYTHONPATH": "<REPO_PATH>"` in `env`, then restart Claude Desktop.
 
 ### Added
+- CI package jobs (#61): `package (ubuntu-24.04, Python 3.10)` builds the
+  sdist and wheel once, checks their contents against an allowlist and a
+  ban list, installs the wheel into a clean venv and runs the
+  installed-mode tests (the STDIO server check and the `.env` rules)
+  before uploading the files as an artifact.
+  `package (windows-2025, Python 3.14)` installs and tests that same
+  artifact on Windows.
 - `plugvan-mcp` console script (#59): `plugvan-mcp todoist` starts the
   Todoist MCP server over STDIO, like `python -m plugvan.todoist`.
   `plugvan-mcp --version` prints the installed version. A missing or
