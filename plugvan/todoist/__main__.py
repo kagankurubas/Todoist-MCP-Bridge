@@ -1,13 +1,15 @@
-"""Entry point: python -m plugvan.todoist (STDIO transport)."""
+"""Entry point: python -m plugvan.todoist (STDIO transport).
 
-import logging
+The only place that reads .env: load_dotenv() with its defaults, so variables already set
+(for example by the MCP client's env block) are not overridden. The `plugvan-mcp todoist`
+console script never imports this module and never reads .env.
+"""
 
 from dotenv import load_dotenv
 
-logging.basicConfig(level=logging.INFO)
-load_dotenv()
-
-from plugvan.todoist.server import mcp  # imported after env/logging setup
+from plugvan import todoist
 
 if __name__ == "__main__":
-    mcp.run()
+    todoist.configure_logging()
+    load_dotenv()
+    todoist.run()
