@@ -1129,3 +1129,86 @@ def test_update_task_current_project_http_error_logs_error_type_only(mock_get_cl
     assert "status=502" not in caplog.text
     assert "502" not in caplog.text
     assert "error_type=HTTPStatusError" in caplog.text
+
+
+# =====================================================================
+# HTTP ERROR DETAIL LOGGING
+# =====================================================================
+# A failing Todoist HTTP call logs its status at ERROR; the response body, which can echo user
+# content and account data, is logged only at DEBUG. The server runs at INFO by default.
+
+RESPONSE_BODY_SENTINEL = "SENTINEL-RESPONSE-BODY-do-not-log"
+
+
+def _create_task_500(mock_api):
+    mock_api.get_projects.return_value = [[]]
+    mock_api.add_task.side_effect = _make_http_status_error(500, text=f"upstream: {RESPONSE_BODY_SENTINEL}")
+    return create_task(content="Body logging task")
+
+
+def _update_task_unparent_404(mock_api):
+    # parent_id="" without a project or section looks up the task's current project with an
+    # unwrapped get_task call; its HTTP error falls through to the generic failure branch.
+    mock_api.get_task.side_effect = _make_http_status_error(404, text=f"not found: {RESPONSE_BODY_SENTINEL}")
+    return update_task(task_id="task_child", parent_id="")
+
+
+def _create_task_deadline_403(mock_api):
+    mock_api.get_projects.return_value = [[]]
+    mock_api.add_task.side_effect = _make_http_status_error(403, text=f"forbidden: {RESPONSE_BODY_SENTINEL}")
+    return create_task(content="Deadline task", deadline_date="2026-09-01")
+
+
+HTTP_FAILURE_SCENARIOS = [
+    pytest.param(
+        _create_task_500, 500,
+        "❌ Todoist task creation failed. Check server logs for details.",
+        id="create_task-500",
+    ),
+    pytest.param(
+        _update_task_unparent_404, 404,
+        "❌ Failed to update task in Todoist (ID: task_child). Check server logs for details.",
+        id="update_task-parent_id-empty-get_task-404",
+    ),
+    pytest.param(
+        _create_task_deadline_403, 403,
+        "❌ The deadline feature is not available on the Todoist Free/Beginner plan "
+        "— a Pro or Business plan is required (403 Forbidden).",
+        id="create_task-deadline-403",
+    ),
+]
+
+
+@pytest.mark.parametrize("level", [logging.INFO, logging.WARNING], ids=["INFO", "WARNING"])
+@pytest.mark.parametrize("scenario, status, expected_message", HTTP_FAILURE_SCENARIOS)
+@patch("plugvan.todoist.client.get_api_client")
+def test_http_error_body_is_not_logged_above_debug(mock_get_client, caplog, scenario, status, expected_message, level):
+    mock_api = MagicMock()
+    mock_get_client.return_value = mock_api
+
+    with caplog.at_level(level, logger="todoist_mcp"):
+        result = scenario(mock_api)
+
+    assert result == expected_message
+    assert RESPONSE_BODY_SENTINEL not in caplog.text
+    assert any(
+        record.levelno == logging.ERROR and f"status={status}" in record.getMessage()
+        for record in caplog.records
+    ), "the HTTP status is no longer logged at ERROR"
+
+
+@pytest.mark.parametrize("scenario, status, expected_message", HTTP_FAILURE_SCENARIOS)
+@patch("plugvan.todoist.client.get_api_client")
+def test_http_error_body_is_logged_only_at_debug(mock_get_client, caplog, scenario, status, expected_message):
+    mock_api = MagicMock()
+    mock_get_client.return_value = mock_api
+
+    with caplog.at_level(logging.DEBUG, logger="todoist_mcp"):
+        result = scenario(mock_api)
+
+    assert result == expected_message
+    body_records = [record for record in caplog.records if RESPONSE_BODY_SENTINEL in record.getMessage()]
+    assert body_records, "the response body is not logged at DEBUG"
+    assert all(record.levelno == logging.DEBUG for record in body_records), [
+        logging.getLevelName(record.levelno) for record in body_records
+    ]

@@ -5,6 +5,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Changed
+- HTTP response bodies of failed Todoist API calls are logged only at
+  DEBUG level (#57). The HTTP status is still logged at ERROR. Response
+  bodies can echo user content and account data, so they no longer appear
+  in the default (INFO) logs.
 - The sdist now contains only what is needed to build and describe the
   package: `plugvan/`, `pyproject.toml`, `PKG-INFO`, `README.md`, `LICENSE`,
   `CHANGELOG.md` and `.gitignore` (which hatchling always adds). Tests,
