@@ -1,0 +1,47 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "plugvan-mcp"
+version = "0.1.0.dev0"
+description = "Todoist tools for Claude Desktop as an MCP server over STDIO."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Nuri Kağan Kurubaş" }]
+keywords = ["mcp", "todoist", "claude"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: End Users/Desktop",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Office/Business :: Scheduling",
+]
+dependencies = [
+    "mcp>=1.29.0,<2.0.0",
+    "todoist-api-python>=4.0.0,<5.0.0",
+    "pydantic>=2.0.0,<3.0.0",
+    "python-dotenv>=1.0.0,<2.0.0",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=8.0.0,<10.0.0",
+    "httpx>=0.27.0,<1.0.0",
+]
+
+[project.urls]
+Source = "https://github.com/kagankurubas/plugvan"
+Issues = "https://github.com/kagankurubas/plugvan/issues"
+Changelog = "https://github.com/kagankurubas/plugvan/blob/main/CHANGELOG.md"
+
+[tool.hatch.build.targets.wheel]
+packages = ["plugvan"]

@@ -84,7 +84,7 @@ Plugvan is primarily a local **Model Context Protocol (MCP)** server: Claude Des
 plugvan/
 ├── plugvan/todoist/        # FastMCP server for Claude Desktop (STDIO, python -m plugvan.todoist)
 ├── tests/                  # Pytest test suite (unit & integration tests)
-├── requirements.txt        # Python dependencies
+├── pyproject.toml          # Package metadata and dependencies
 └── .env.example            # Environment variable template
 ```
 
@@ -110,7 +110,7 @@ python -m venv venv
 source venv/bin/activate
 
 # Install required packages
-pip install -r requirements.txt
+pip install -e ".[test]"
 ```
 
 #### 3. Configure Environment Variables
@@ -199,7 +199,7 @@ Plugvan, temelde yerel çalışan bir **Model Context Protocol (MCP)** sunucusud
 plugvan/
 ├── plugvan/todoist/        # Claude Desktop için FastMCP sunucusu (STDIO, python -m plugvan.todoist)
 ├── tests/                  # Pytest test paketi (birim ve entegrasyon testleri)
-├── requirements.txt        # Python bağımlılıkları
+├── pyproject.toml          # Paket bilgileri ve bağımlılıklar
 └── .env.example            # Çevre değişkeni şablonu
 ```
 
@@ -222,7 +222,7 @@ python -m venv venv
 # macOS / Linux:
 source venv/bin/activate
 
-pip install -r requirements.txt
+pip install -e ".[test]"
 ```
 
 #### 3. Çevre Değişkenlerini Yapılandırın
