@@ -31,10 +31,13 @@ logger = logging.getLogger("todoist_mcp")
 
 
 def _log_http_error_detail(e: Exception) -> None:
-    """Logs the raw HTTP status and response body for an API error (server-side only, never returned to the client)."""
+    """Logs an API error's HTTP status at ERROR and its response body only at DEBUG (server-side
+    only, never returned to the client). The body can echo user content and account data, so it
+    stays out of the default INFO-level logs."""
     response = getattr(e, "response", None)
     if response is not None:
-        logger.error("Todoist API error detail: status=%s body=%s", response.status_code, response.text)
+        logger.error("Todoist API error detail: status=%s", response.status_code)
+        logger.debug("Todoist API error response body: status=%s body=%s", response.status_code, response.text)
 
 
 def _is_deadline_plan_restriction(e: Exception, deadline_date_requested: bool) -> bool:
