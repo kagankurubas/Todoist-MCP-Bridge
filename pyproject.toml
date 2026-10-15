@@ -48,3 +48,9 @@ Changelog = "https://github.com/kagankurubas/plugvan/blob/main/CHANGELOG.md"
 
 [tool.hatch.build.targets.wheel]
 packages = ["plugvan"]
+
+# The sdist carries only what is needed to build and describe the package. hatchling always
+# adds pyproject.toml, PKG-INFO and the root .gitignore (it cannot be excluded). Checked in
+# CI by scripts/check_dist_contents.py.
+[tool.hatch.build.targets.sdist]
+only-include = ["plugvan", "README.md", "LICENSE", "CHANGELOG.md"]
