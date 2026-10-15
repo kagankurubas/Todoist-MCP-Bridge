@@ -8,8 +8,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 # Activate the existing venv (Windows)
 .\venv\Scripts\activate
 
-# Install dependencies
-pip install -r requirements.txt
+# Install the project (editable) with its test dependencies; pyproject.toml is the single dependency source
+pip install -e ".[test]"
 
 # Run the full test suite
 pytest
@@ -64,7 +64,7 @@ Each tool independently:
    - `create_task`/`update_task` validate the target first, then write.
 3. Calls the Todoist SDK through the `TodoistAPI` built by `client.get_api_client()`.
 
-The decision to give tool names an application prefix (such as `todoist_create_task`) was postponed: it will be done later with the standalone `fastmcp`'s `mount(server, namespace=...)` feature, without changing code. This requires moving from the SDK's FastMCP to the standalone `fastmcp`; therefore do not remove the `fastmcp` dependency from `requirements.txt`.
+The decision to give tool names an application prefix (such as `todoist_create_task`) was postponed: it will be done later with the standalone `fastmcp`'s `mount(server, namespace=...)` feature, without changing code. This requires moving from the SDK's FastMCP (`mcp.server.fastmcp`, the only FastMCP the code uses today) to the standalone `fastmcp`. The standalone `fastmcp` is therefore not a dependency now; add it back to `pyproject.toml` when the mount/namespace migration is decided.
 
 ### Tests
 

@@ -56,6 +56,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   with `"PYTHONPATH": "<REPO_PATH>"` in `env`, then restart Claude Desktop.
 
 ### Added
+- `pyproject.toml`: the project is now the Python distribution `plugvan-mcp`
+  (import package `plugvan`, Python 3.10+), and `pyproject.toml` is the
+  single source of its dependencies. Test-only dependencies are in the
+  `test` extra (#58).
 - Name-resolution tests: the four resolver outcomes, ambiguity and the
   5-candidate cap, no write on any error, and no exception text or HTTP
   response in tool output or logs. Suite: 183 → 254.
@@ -84,6 +88,13 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `google-auth-httplib2`, `google-api-python-client`, `pytest-asyncio`.
 - `WEBHOOK_SECRET_TOKEN` and `ALLOWED_ORIGINS` are no longer read; only
   `TODOIST_API_TOKEN` is needed.
+- `requirements.txt` (#58). **Migration:** in an existing checkout venv,
+  run `pip install -e ".[test]"` instead of `pip install -r requirements.txt`.
+  The `python -m plugvan.todoist` Claude Desktop config keeps working
+  unchanged.
+- The unused standalone `fastmcp` dependency (#58). The server uses the
+  MCP SDK's built-in FastMCP; standalone `fastmcp` will be added back
+  with the tool-name namespacing migration.
 
 ### Fixed
 - MCP clients on Python 3.10–3.12 received indented tool descriptions: the
